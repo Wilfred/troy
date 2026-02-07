@@ -26,3 +26,4 @@ dist/
 build/
 *.tsbuildinfo
 .env
+SYSTEM.private.md
