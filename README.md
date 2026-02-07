@@ -4,4 +4,4 @@
 
 Troy is an experiment in an agentic helper bot that has personal
 context. It tries to solve the lethal trifecta by only dealing with
-trusted einput.
+trusted input.
