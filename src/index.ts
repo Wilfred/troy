@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 
 const { values } = parseArgs({
@@ -19,6 +20,8 @@ if (!apiKey) {
 
 const model = process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini";
 
+const systemPrompt = readFileSync(new URL("../SYSTEM.md", import.meta.url), "utf-8");
+
 const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
   method: "POST",
   headers: {
@@ -27,7 +30,10 @@ const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
   },
   body: JSON.stringify({
     model,
-    messages: [{ role: "user", content: values.prompt }],
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: values.prompt },
+    ],
   }),
 });
 
