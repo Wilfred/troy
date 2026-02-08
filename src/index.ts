@@ -18,9 +18,21 @@ if (!apiKey) {
   process.exit(1);
 }
 
-const model = process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini";
+// openai/gpt-4o-mini: too generic and seemed to ignore system prompt.
+// anthropic/claude-opus-4.5: decent results
+//
+// google/gemini-2.5-pro: looks like it googled things? not what I wanted.
+//
+// openai/gpt-5.2: decent, a little slow, asked follow-up questions
+//
+// anthropic/claude-sonnet-4.5: OK, not as good as opus, asked
+// follow-up questions.
+const model = process.env.OPENROUTER_MODEL || "anthropic/claude-sonnet-4.5";
 
-let systemPrompt = readFileSync(new URL("../SYSTEM.md", import.meta.url), "utf-8");
+let systemPrompt = readFileSync(
+  new URL("../SYSTEM.md", import.meta.url),
+  "utf-8",
+);
 
 const privatePath = new URL("../SYSTEM.private.md", import.meta.url);
 if (existsSync(privatePath)) {
@@ -43,7 +55,9 @@ const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
 });
 
 if (!response.ok) {
-  console.error(`Error: OpenRouter API returned ${response.status} ${response.statusText}`);
+  console.error(
+    `Error: OpenRouter API returned ${response.status} ${response.statusText}`,
+  );
   process.exit(1);
 }
 
