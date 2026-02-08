@@ -27,7 +27,7 @@ if (!apiKey) {
 //
 // anthropic/claude-sonnet-4.5: OK, not as good as opus, asked
 // follow-up questions.
-const model = process.env.OPENROUTER_MODEL || "anthropic/claude-sonnet-4.5";
+const model = process.env.OPENROUTER_MODEL || "anthropic/claude-opus-4.6";
 
 let systemPrompt = readFileSync(
   new URL("../SYSTEM.md", import.meta.url),
