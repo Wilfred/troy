@@ -2,6 +2,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
+import { OpenRouter } from "@openrouter/sdk";
 
 const { values } = parseArgs({
   options: {
@@ -41,33 +42,19 @@ if (existsSync(privatePath)) {
   systemPrompt += "\n" + readFileSync(privatePath, "utf-8");
 }
 
-const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${apiKey}`,
-  },
-  body: JSON.stringify({
+const client = new OpenRouter({ apiKey });
+
+const completion = await client.chat.send({
+  chatGenerationParams: {
     model,
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user", content: values.prompt },
     ],
-  }),
+  },
 });
 
-if (!response.ok) {
-  console.error(
-    `Error: OpenRouter API returned ${response.status} ${response.statusText}`,
-  );
-  process.exit(1);
-}
-
-const data = (await response.json()) as {
-  choices: Array<{ message: { content: string } }>;
-};
-
-const content = data.choices?.[0]?.message?.content;
+const content = completion.choices?.[0]?.message?.content;
 if (!content) {
   console.error("Error: No response content from model");
   process.exit(1);
