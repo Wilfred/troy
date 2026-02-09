@@ -7,13 +7,17 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.2",
     "@types/node": "^25.2.1",
+    "eslint": "^9.39.2",
     "prettier": "^3.8.1",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.55.0"
   },
   "dependencies": {
     "@openrouter/sdk": "^0.8.0"
