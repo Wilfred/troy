@@ -47,6 +47,11 @@ if (existsSync(notesPath)) {
   systemPrompt += "\n\n## Notes\n\n" + readFileSync(notesPath, "utf-8");
 }
 
+const currentUser = process.env.USER;
+if (currentUser) {
+  systemPrompt += `\n\nThe current user's name is ${currentUser}.`;
+}
+
 const client = new OpenRouter({ apiKey });
 
 const tools = [
