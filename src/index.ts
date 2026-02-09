@@ -1,4 +1,6 @@
-import { existsSync, readFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { parseArgs } from "node:util";
 
 const { values } = parseArgs({
@@ -72,3 +74,12 @@ if (!content) {
 }
 
 console.log(content);
+
+const logDir = join(homedir(), ".troy");
+mkdirSync(logDir, { recursive: true });
+const logFile = join(logDir, "history.log");
+const timestamp = new Date().toISOString();
+appendFileSync(
+  logFile,
+  `--- ${timestamp} [${model}] ---\n> ${values.prompt}\n${content}\n\n`,
+);
