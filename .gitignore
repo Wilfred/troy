@@ -27,3 +27,4 @@ build/
 *.tsbuildinfo
 .env
 SYSTEM.private.md
+NOTES.md
