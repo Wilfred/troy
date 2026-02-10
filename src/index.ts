@@ -128,6 +128,7 @@ async function main() {
       prompt: { type: "string", short: "p" },
       messages: { type: "string", short: "m" },
       help: { type: "boolean", short: "h", default: false },
+      "print-system-prompt": { type: "boolean", default: false },
     },
   });
 
@@ -136,14 +137,21 @@ async function main() {
       `Usage: troy --prompt <string> [options]
 
 Options:
-  -p, --prompt <string>    The prompt to send to the model (required)
-  -m, --messages <file>    Path to a messages JSON file for context
-  -h, --help               Show this help message
+  -p, --prompt <string>         The prompt to send to the model (required)
+  -m, --messages <file>         Path to a messages JSON file for context
+  -h, --help                    Show this help message
+  --print-system-prompt         Print the system prompt that would be used and exit
 
 Environment variables:
   OPENROUTER_API_KEY       API key for OpenRouter (required)
   OPENROUTER_MODEL         Model to use (default: anthropic/claude-opus-4.6)`,
     );
+    process.exit(0);
+  }
+
+  if (values["print-system-prompt"]) {
+    const systemPrompt = buildSystemPrompt(values.messages);
+    console.log(systemPrompt);
     process.exit(0);
   }
 
