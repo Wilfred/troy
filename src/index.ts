@@ -40,7 +40,7 @@ const tools = [
   },
 ];
 
-function buildSystemPrompt(): string {
+function buildSystemPrompt(messagesFile?: string): string {
   let systemPrompt = readFileSync(
     new URL("../SYSTEM.md", import.meta.url),
     "utf-8",
@@ -61,9 +61,11 @@ function buildSystemPrompt(): string {
     systemPrompt += `\n\nThe current user's name is ${currentUser}.`;
   }
 
-  const recentMessages = getRecentMessages(5);
-  if (recentMessages) {
-    systemPrompt += `\n\n## Recent messages\n\n${recentMessages}`;
+  if (messagesFile) {
+    const recentMessages = getRecentMessages(messagesFile, 5);
+    if (recentMessages) {
+      systemPrompt += `\n\n## Recent messages\n\n${recentMessages}`;
+    }
   }
 
   return systemPrompt;
@@ -121,6 +123,7 @@ async function main() {
   const { values } = parseArgs({
     options: {
       prompt: { type: "string", short: "p" },
+      messages: { type: "string", short: "m" },
     },
   });
 
@@ -152,7 +155,7 @@ async function main() {
   const notesPath = new URL("../NOTES.md", import.meta.url);
 
   const messages: Message[] = [
-    { role: "system", content: buildSystemPrompt() },
+    { role: "system", content: buildSystemPrompt(values.messages) },
     { role: "user", content: values.prompt },
   ];
 
