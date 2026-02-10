@@ -62,7 +62,7 @@ function buildSystemPrompt(messagesFile?: string): string {
   }
 
   if (messagesFile) {
-    const recentMessages = getRecentMessages(messagesFile, 5);
+    const recentMessages = getRecentMessages(messagesFile, 20);
     if (recentMessages) {
       systemPrompt += `\n\n## Recent messages\n\n${recentMessages}`;
     }
