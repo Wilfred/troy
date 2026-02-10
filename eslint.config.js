@@ -10,8 +10,7 @@ export default tseslint.config(
       "no-restricted-syntax": [
         "error",
         {
-          selector:
-            ":function FunctionDeclaration",
+          selector: ":function FunctionDeclaration",
           message:
             "Nested named functions are not allowed. Move the function to the top level.",
         },
