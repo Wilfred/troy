@@ -63,6 +63,54 @@ function buildSystemPrompt(): string {
   return systemPrompt;
 }
 
+async function chat(
+  client: OpenRouter,
+  model: string,
+  messages: Message[],
+  notesPath: URL,
+): Promise<string> {
+  const completion = await client.chat.send({
+    chatGenerationParams: {
+      model,
+      messages,
+      tools,
+    },
+  });
+
+  const choice = completion.choices?.[0];
+  const msg = choice?.message;
+  if (!msg) {
+    console.error("Error: No response from model");
+    process.exit(1);
+  }
+
+  if (msg.toolCalls && msg.toolCalls.length > 0) {
+    messages.push({
+      role: "assistant",
+      content: msg.content as string | null | undefined,
+      toolCalls: msg.toolCalls,
+    });
+
+    for (const toolCall of msg.toolCalls) {
+      if (toolCall.function.name === "append_note") {
+        const args = JSON.parse(toolCall.function.arguments) as {
+          text: string;
+        };
+        appendFileSync(notesPath, args.text + "\n", "utf-8");
+        messages.push({
+          role: "tool",
+          toolCallId: toolCall.id,
+          content: "Done.",
+        });
+      }
+    }
+
+    return chat(client, model, messages, notesPath);
+  }
+
+  return (msg.content as string) || "";
+}
+
 async function main() {
   const { values } = parseArgs({
     options: {
@@ -102,50 +150,7 @@ async function main() {
     { role: "user", content: values.prompt },
   ];
 
-  async function chat(): Promise<string> {
-    const completion = await client.chat.send({
-      chatGenerationParams: {
-        model,
-        messages,
-        tools,
-      },
-    });
-
-    const choice = completion.choices?.[0];
-    const msg = choice?.message;
-    if (!msg) {
-      console.error("Error: No response from model");
-      process.exit(1);
-    }
-
-    if (msg.toolCalls && msg.toolCalls.length > 0) {
-      messages.push({
-        role: "assistant",
-        content: msg.content as string | null | undefined,
-        toolCalls: msg.toolCalls,
-      });
-
-      for (const toolCall of msg.toolCalls) {
-        if (toolCall.function.name === "append_note") {
-          const args = JSON.parse(toolCall.function.arguments) as {
-            text: string;
-          };
-          appendFileSync(notesPath, args.text + "\n", "utf-8");
-          messages.push({
-            role: "tool",
-            toolCallId: toolCall.id,
-            content: "Done.",
-          });
-        }
-      }
-
-      return chat();
-    }
-
-    return (msg.content as string) || "";
-  }
-
-  const content = await chat();
+  const content = await chat(client, model, messages, notesPath);
   if (!content) {
     console.error("Error: No response content from model");
     process.exit(1);
