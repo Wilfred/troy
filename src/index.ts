@@ -56,9 +56,12 @@ function buildSystemPrompt(messagesFile?: string): string {
     systemPrompt += "\n\n## Notes\n\n" + readFileSync(notesPath, "utf-8");
   }
 
+  const currentDate = new Date().toISOString().slice(0, 10);
+  systemPrompt += `\n\nToday's date is ${currentDate}.`;
+
   const currentUser = process.env.USER;
   if (currentUser) {
-    systemPrompt += `\n\nThe current user's name is ${currentUser}.`;
+    systemPrompt += `\nThe current user's name is ${currentUser}.`;
   }
 
   if (messagesFile) {
