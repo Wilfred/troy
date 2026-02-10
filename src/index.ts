@@ -1,7 +1,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { parseArgs } from "node:util";
+import { Command } from "commander";
 import { OpenRouter } from "@openrouter/sdk";
 import { getRecentMessages } from "./messages.js";
 
@@ -123,41 +123,33 @@ async function chat(
 }
 
 async function main() {
-  const { values } = parseArgs({
-    options: {
-      prompt: { type: "string", short: "p" },
-      messages: { type: "string", short: "m" },
-      help: { type: "boolean", short: "h", default: false },
-      "print-system-prompt": { type: "boolean", default: false },
-    },
-  });
+  const program = new Command();
 
-  if (values.help) {
-    console.log(
-      `Usage: troy --prompt <string> [options]
-
-Options:
-  -p, --prompt <string>         The prompt to send to the model (required)
-  -m, --messages <file>         Path to a messages JSON file for context
-  -h, --help                    Show this help message
-  --print-system-prompt         Print the system prompt that would be used and exit
-
+  program
+    .name("troy")
+    .description("Agentic helper bot powered by OpenRouter")
+    .requiredOption("-p, --prompt <string>", "the prompt to send to the model")
+    .option("-m, --messages <file>", "path to a messages JSON file for context")
+    .option("--print-system-prompt", "print the system prompt and exit")
+    .addHelpText(
+      "after",
+      `
 Environment variables:
   OPENROUTER_API_KEY       API key for OpenRouter (required)
   OPENROUTER_MODEL         Model to use (default: anthropic/claude-opus-4.6)`,
     );
-    process.exit(0);
-  }
 
-  if (values["print-system-prompt"]) {
-    const systemPrompt = buildSystemPrompt(values.messages);
+  program.parse();
+  const opts = program.opts<{
+    prompt: string;
+    messages?: string;
+    printSystemPrompt?: boolean;
+  }>();
+
+  if (opts.printSystemPrompt) {
+    const systemPrompt = buildSystemPrompt(opts.messages);
     console.log(systemPrompt);
     process.exit(0);
-  }
-
-  if (!values.prompt) {
-    console.error("Usage: troy --prompt <string> (see --help for details)");
-    process.exit(1);
   }
 
   const apiKey = process.env.OPENROUTER_API_KEY;
@@ -181,8 +173,8 @@ Environment variables:
   const notesPath = new URL("../NOTES.md", import.meta.url);
 
   const messages: Message[] = [
-    { role: "system", content: buildSystemPrompt(values.messages) },
-    { role: "user", content: values.prompt },
+    { role: "system", content: buildSystemPrompt(opts.messages) },
+    { role: "user", content: opts.prompt },
   ];
 
   const content = await chat(client, model, messages, notesPath);
@@ -199,7 +191,7 @@ Environment variables:
   const timestamp = new Date().toISOString();
   appendFileSync(
     logFile,
-    `--- ${timestamp} [${model}] ---\n> ${values.prompt}\n${content}\n\n`,
+    `--- ${timestamp} [${model}] ---\n> ${opts.prompt}\n${content}\n\n`,
   );
 }
 

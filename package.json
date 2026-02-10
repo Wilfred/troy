@@ -20,6 +20,7 @@
     "typescript-eslint": "^8.55.0"
   },
   "dependencies": {
-    "@openrouter/sdk": "^0.8.0"
+    "@openrouter/sdk": "^0.8.0",
+    "commander": "^14.0.3"
   }
 }
