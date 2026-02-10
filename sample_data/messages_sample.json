@@ -1,0 +1,16 @@
+{
+  "messages": [
+    {
+      "senderName": "John Doe",
+      "text": "How are we doing for ice cream?",
+      "timestamp": 1770644107078,
+      "type": "text"
+    },
+    {
+      "senderName": "Jane Doe",
+      "text": "We've still got plenty",
+      "timestamp": 1770662660593,
+      "type": "text"
+    }
+  ]
+}

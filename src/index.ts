@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { OpenRouter } from "@openrouter/sdk";
+import { getRecentMessages } from "./messages.js";
 
 type Message =
   | { role: "system"; content: string }
@@ -58,6 +59,11 @@ function buildSystemPrompt(): string {
   const currentUser = process.env.USER;
   if (currentUser) {
     systemPrompt += `\n\nThe current user's name is ${currentUser}.`;
+  }
+
+  const recentMessages = getRecentMessages(5);
+  if (recentMessages) {
+    systemPrompt += `\n\n## Recent messages\n\n${recentMessages}`;
   }
 
   return systemPrompt;
