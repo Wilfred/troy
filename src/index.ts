@@ -124,11 +124,28 @@ async function main() {
     options: {
       prompt: { type: "string", short: "p" },
       messages: { type: "string", short: "m" },
+      help: { type: "boolean", short: "h", default: false },
     },
   });
 
+  if (values.help) {
+    console.log(
+      `Usage: troy --prompt <string> [options]
+
+Options:
+  -p, --prompt <string>    The prompt to send to the model (required)
+  -m, --messages <file>    Path to a messages JSON file for context
+  -h, --help               Show this help message
+
+Environment variables:
+  OPENROUTER_API_KEY       API key for OpenRouter (required)
+  OPENROUTER_MODEL         Model to use (default: anthropic/claude-opus-4.6)`,
+    );
+    process.exit(0);
+  }
+
   if (!values.prompt) {
-    console.error("Usage: troy --prompt <string>");
+    console.error("Usage: troy --prompt <string> (see --help for details)");
     process.exit(1);
   }
 
