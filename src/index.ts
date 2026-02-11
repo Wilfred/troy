@@ -4,6 +4,7 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
+  writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -41,6 +42,29 @@ const tools = [
           },
         },
         required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "edit_note",
+      description:
+        "Edit the user's NOTES.md file by replacing existing text with new text. Use this to update, correct, or remove outdated notes.",
+      parameters: {
+        type: "object",
+        properties: {
+          old_text: {
+            type: "string",
+            description: "The existing text in NOTES.md to find and replace",
+          },
+          new_text: {
+            type: "string",
+            description:
+              "The replacement text. Use an empty string to delete the old text.",
+          },
+        },
+        required: ["old_text", "new_text"],
       },
     },
   },
@@ -124,6 +148,29 @@ async function chat(
           toolCallId: toolCall.id,
           content: "Done.",
         });
+      } else if (toolCall.function.name === "edit_note") {
+        const args = JSON.parse(toolCall.function.arguments) as {
+          old_text: string;
+          new_text: string;
+        };
+        const current = existsSync(notesPath)
+          ? readFileSync(notesPath, "utf-8")
+          : "";
+        if (!current.includes(args.old_text)) {
+          messages.push({
+            role: "tool",
+            toolCallId: toolCall.id,
+            content: "Error: old_text not found in NOTES.md.",
+          });
+        } else {
+          const updated = current.replace(args.old_text, args.new_text);
+          writeFileSync(notesPath, updated, "utf-8");
+          messages.push({
+            role: "tool",
+            toolCallId: toolCall.id,
+            content: "Done.",
+          });
+        }
       }
     }
 
