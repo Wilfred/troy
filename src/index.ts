@@ -9,7 +9,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { Command } from "commander";
 import { OpenRouter } from "@openrouter/sdk";
-import { getRecentMessages } from "./messages.js";
+import { getAllMessages, getRecentMessages } from "./messages.js";
 
 type Message =
   | { role: "system"; content: string }
@@ -224,6 +224,63 @@ Environment variables:
       const dataDir = getDataDir(opts.dataDir);
       const systemPrompt = buildSystemPrompt(dataDir, opts.messages);
       console.log(systemPrompt);
+    });
+
+  program
+    .command("import")
+    .description("Import past messages and update notes based on them")
+    .requiredOption(
+      "-m, --messages <file>",
+      "path to a messages JSON file to import",
+    )
+    .option(
+      "-d, --data-dir <path>",
+      "data directory for .md files (default: ~/troy_data)",
+    )
+    .addHelpText(
+      "after",
+      `
+Environment variables:
+  OPENROUTER_API_KEY       API key for OpenRouter (required)
+  OPENROUTER_MODEL         Model to use (default: anthropic/claude-opus-4.6)`,
+    )
+    .action(async (opts: { messages: string; dataDir?: string }) => {
+      const dataDir = getDataDir(opts.dataDir);
+
+      const apiKey = process.env.OPENROUTER_API_KEY;
+      if (!apiKey) {
+        console.error(
+          "Error: OPENROUTER_API_KEY environment variable is not set",
+        );
+        process.exit(1);
+      }
+
+      const model =
+        process.env.OPENROUTER_MODEL || "anthropic/claude-opus-4.6";
+
+      const client = new OpenRouter({ apiKey });
+      const notesPath = join(dataDir, "NOTES.md");
+
+      const formattedMessages = getAllMessages(opts.messages);
+      const existingNotes = existsSync(notesPath)
+        ? readFileSync(notesPath, "utf-8")
+        : "";
+
+      const prompt =
+        `Review the following chat history and update your notes with any useful information about the users, their preferences, important facts, or anything worth remembering for future conversations.\n\n` +
+        `## Current notes\n\n${existingNotes || "(empty)"}\n\n` +
+        `## Chat history\n\n${formattedMessages}\n\n` +
+        `Use the append_note tool to save anything new you've learned. Do not duplicate information already in your notes.`;
+
+      const messages: Message[] = [
+        { role: "system", content: buildSystemPrompt(dataDir) },
+        { role: "user", content: prompt },
+      ];
+
+      const content = await chat(client, model, messages, notesPath);
+      if (content) {
+        console.log(content);
+      }
     });
 
   await program.parseAsync();
