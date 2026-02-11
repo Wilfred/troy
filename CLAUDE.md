@@ -6,6 +6,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Troy is an agentic helper bot CLI powered by OpenRouter. It provides persistent context and personal memory through markdown files stored in a data directory (`~/troy_data/` by default).
 
+The data directory is split into two subdirectories:
+
+- `~/troy_data/rules/` — always loaded into the system prompt; `NOTES.md` lives here
+- `~/troy_data/skills/` — each `.md` file is loaded only when the initial sentence of the prompt matches the skill name (keyword match on the filename)
+
 ## Commands
 
 ```bash
@@ -22,10 +27,12 @@ CI runs typecheck, lint, and format:check on Node 22.
 ## Architecture
 
 **Two source files:**
+
 - `src/index.ts` — CLI entry point, system prompt construction, chat loop, and tool handling
 - `src/messages.ts` — Utilities for parsing and formatting chat message JSON files
 
 **CLI commands** (via Commander.js):
+
 - `troy run -p <prompt>` — Send a prompt to the model
 - `troy print-system` — Display the constructed system prompt
 - `troy import -m <file>` — Import chat history and extract learnings into NOTES.md

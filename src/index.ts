@@ -72,22 +72,62 @@ const tools = [
 
 function getDataDir(dataDir?: string): string {
   const dir = dataDir || join(homedir(), "troy_data");
-  mkdirSync(dir, { recursive: true });
+  mkdirSync(join(dir, "rules"), { recursive: true });
+  mkdirSync(join(dir, "skills"), { recursive: true });
   return dir;
 }
 
-function buildSystemPrompt(dataDir: string, messagesFile?: string): string {
+function getInitialSentence(prompt: string): string {
+  const match = /^[^.!?]*[.!?]?/.exec(prompt);
+  return match ? match[0].toLowerCase() : prompt.toLowerCase();
+}
+
+function loadMatchingSkills(skillsDir: string, prompt: string): string[] {
+  if (!existsSync(skillsDir)) return [];
+  const sentence = getInitialSentence(prompt);
+  const files = readdirSync(skillsDir)
+    .filter((f: string) => f.endsWith(".md"))
+    .sort();
+  const result: string[] = [];
+  for (const file of files) {
+    const skillName = file
+      .replace(/\.md$/, "")
+      .replace(/[-_]/g, " ")
+      .toLowerCase();
+    const words: string[] = skillName
+      .split(/\s+/)
+      .filter((w: string) => w.length > 2);
+    if (words.some((w: string) => sentence.includes(w))) {
+      result.push(readFileSync(join(skillsDir, file), "utf-8"));
+    }
+  }
+  return result;
+}
+
+function buildSystemPrompt(
+  dataDir: string,
+  messagesFile?: string,
+  prompt?: string,
+): string {
   let systemPrompt = readFileSync(
     new URL("../SYSTEM.md", import.meta.url),
     "utf-8",
   );
 
-  if (existsSync(dataDir)) {
-    const mdFiles = readdirSync(dataDir)
-      .filter((f) => f.endsWith(".md"))
+  const rulesDir = join(dataDir, "rules");
+  if (existsSync(rulesDir)) {
+    const mdFiles = readdirSync(rulesDir)
+      .filter((f: string) => f.endsWith(".md"))
       .sort();
     for (const file of mdFiles) {
-      systemPrompt += "\n\n" + readFileSync(join(dataDir, file), "utf-8");
+      systemPrompt += "\n\n" + readFileSync(join(rulesDir, file), "utf-8");
+    }
+  }
+
+  if (prompt) {
+    const skillsDir = join(dataDir, "skills");
+    for (const content of loadMatchingSkills(skillsDir, prompt)) {
+      systemPrompt += "\n\n" + content;
     }
   }
 
@@ -202,11 +242,7 @@ Environment variables:
   OPENROUTER_MODEL         Model to use (default: anthropic/claude-opus-4.6)`,
     )
     .action(
-      async (opts: {
-        prompt: string;
-        messages?: string;
-        dataDir?: string;
-      }) => {
+      async (opts: { prompt: string; messages?: string; dataDir?: string }) => {
         const dataDir = getDataDir(opts.dataDir);
 
         const apiKey = process.env.OPENROUTER_API_KEY;
@@ -230,12 +266,12 @@ Environment variables:
           process.env.OPENROUTER_MODEL || "anthropic/claude-opus-4.6";
 
         const client = new OpenRouter({ apiKey });
-        const notesPath = join(dataDir, "NOTES.md");
+        const notesPath = join(dataDir, "rules", "NOTES.md");
 
         const messages: Message[] = [
           {
             role: "system",
-            content: buildSystemPrompt(dataDir, opts.messages),
+            content: buildSystemPrompt(dataDir, opts.messages, opts.prompt),
           },
           { role: "user", content: opts.prompt },
         ];
@@ -302,11 +338,10 @@ Environment variables:
         process.exit(1);
       }
 
-      const model =
-        process.env.OPENROUTER_MODEL || "anthropic/claude-opus-4.6";
+      const model = process.env.OPENROUTER_MODEL || "anthropic/claude-opus-4.6";
 
       const client = new OpenRouter({ apiKey });
-      const notesPath = join(dataDir, "NOTES.md");
+      const notesPath = join(dataDir, "rules", "NOTES.md");
 
       const formattedMessages = getAllMessages(opts.messages);
       const existingNotes = existsSync(notesPath)
