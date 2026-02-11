@@ -1,4 +1,10 @@
-import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+} from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { Command } from "commander";
@@ -40,20 +46,25 @@ const tools = [
   },
 ];
 
-function buildSystemPrompt(messagesFile?: string): string {
+function getDataDir(dataDir?: string): string {
+  const dir = dataDir || join(homedir(), "troy_data");
+  mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+function buildSystemPrompt(dataDir: string, messagesFile?: string): string {
   let systemPrompt = readFileSync(
     new URL("../SYSTEM.md", import.meta.url),
     "utf-8",
   );
 
-  const privatePath = new URL("../SYSTEM.private.md", import.meta.url);
-  if (existsSync(privatePath)) {
-    systemPrompt += "\n" + readFileSync(privatePath, "utf-8");
-  }
-
-  const notesPath = new URL("../NOTES.md", import.meta.url);
-  if (existsSync(notesPath)) {
-    systemPrompt += "\n\n## Notes\n\n" + readFileSync(notesPath, "utf-8");
+  if (existsSync(dataDir)) {
+    const mdFiles = readdirSync(dataDir)
+      .filter((f) => f.endsWith(".md"))
+      .sort();
+    for (const file of mdFiles) {
+      systemPrompt += "\n\n" + readFileSync(join(dataDir, file), "utf-8");
+    }
   }
 
   const currentDate = new Date().toISOString().slice(0, 10);
@@ -78,7 +89,7 @@ async function chat(
   client: OpenRouter,
   model: string,
   messages: Message[],
-  notesPath: URL,
+  notesPath: string,
 ): Promise<string> {
   const completion = await client.chat.send({
     chatGenerationParams: {
@@ -130,6 +141,7 @@ async function main() {
     .description("Agentic helper bot powered by OpenRouter")
     .requiredOption("-p, --prompt <string>", "the prompt to send to the model")
     .option("-m, --messages <file>", "path to a messages JSON file for context")
+    .option("-d, --data-dir <path>", "data directory for .md files (default: ~/troy_data)")
     .option("--print-system-prompt", "print the system prompt and exit")
     .addHelpText(
       "after",
@@ -143,11 +155,14 @@ Environment variables:
   const opts = program.opts<{
     prompt: string;
     messages?: string;
+    dataDir?: string;
     printSystemPrompt?: boolean;
   }>();
 
+  const dataDir = getDataDir(opts.dataDir);
+
   if (opts.printSystemPrompt) {
-    const systemPrompt = buildSystemPrompt(opts.messages);
+    const systemPrompt = buildSystemPrompt(dataDir, opts.messages);
     console.log(systemPrompt);
     process.exit(0);
   }
@@ -170,10 +185,10 @@ Environment variables:
   const model = process.env.OPENROUTER_MODEL || "anthropic/claude-opus-4.6";
 
   const client = new OpenRouter({ apiKey });
-  const notesPath = new URL("../NOTES.md", import.meta.url);
+  const notesPath = join(dataDir, "NOTES.md");
 
   const messages: Message[] = [
-    { role: "system", content: buildSystemPrompt(opts.messages) },
+    { role: "system", content: buildSystemPrompt(dataDir, opts.messages) },
     { role: "user", content: opts.prompt },
   ];
 
