@@ -136,78 +136,97 @@ async function chat(
 async function main() {
   const program = new Command();
 
+  program.name("troy").description("Agentic helper bot powered by OpenRouter");
+
   program
-    .name("troy")
-    .description("Agentic helper bot powered by OpenRouter")
+    .command("run")
+    .description("Send a prompt to the model")
     .requiredOption("-p, --prompt <string>", "the prompt to send to the model")
     .option("-m, --messages <file>", "path to a messages JSON file for context")
-    .option("-d, --data-dir <path>", "data directory for .md files (default: ~/troy_data)")
-    .option("--print-system-prompt", "print the system prompt and exit")
+    .option(
+      "-d, --data-dir <path>",
+      "data directory for .md files (default: ~/troy_data)",
+    )
     .addHelpText(
       "after",
       `
 Environment variables:
   OPENROUTER_API_KEY       API key for OpenRouter (required)
   OPENROUTER_MODEL         Model to use (default: anthropic/claude-opus-4.6)`,
+    )
+    .action(
+      async (opts: {
+        prompt: string;
+        messages?: string;
+        dataDir?: string;
+      }) => {
+        const dataDir = getDataDir(opts.dataDir);
+
+        const apiKey = process.env.OPENROUTER_API_KEY;
+        if (!apiKey) {
+          console.error(
+            "Error: OPENROUTER_API_KEY environment variable is not set",
+          );
+          process.exit(1);
+        }
+
+        // openai/gpt-4o-mini: too generic and seemed to ignore system prompt.
+        // anthropic/claude-opus-4.5: decent results
+        //
+        // google/gemini-2.5-pro: looks like it googled things? not what I wanted.
+        //
+        // openai/gpt-5.2: decent, a little slow, asked follow-up questions
+        //
+        // anthropic/claude-sonnet-4.5: OK, not as good as opus, asked
+        // follow-up questions.
+        const model =
+          process.env.OPENROUTER_MODEL || "anthropic/claude-opus-4.6";
+
+        const client = new OpenRouter({ apiKey });
+        const notesPath = join(dataDir, "NOTES.md");
+
+        const messages: Message[] = [
+          {
+            role: "system",
+            content: buildSystemPrompt(dataDir, opts.messages),
+          },
+          { role: "user", content: opts.prompt },
+        ];
+
+        const content = await chat(client, model, messages, notesPath);
+        if (!content) {
+          console.error("Error: No response content from model");
+          process.exit(1);
+        }
+
+        console.log(content);
+
+        const logDir = join(homedir(), ".troy");
+        mkdirSync(logDir, { recursive: true });
+        const logFile = join(logDir, "history.log");
+        const timestamp = new Date().toISOString();
+        appendFileSync(
+          logFile,
+          `--- ${timestamp} [${model}] ---\n> ${opts.prompt}\n${content}\n\n`,
+        );
+      },
     );
 
-  program.parse();
-  const opts = program.opts<{
-    prompt: string;
-    messages?: string;
-    dataDir?: string;
-    printSystemPrompt?: boolean;
-  }>();
+  program
+    .command("print-system")
+    .description("Print the system prompt and exit")
+    .option("-m, --messages <file>", "path to a messages JSON file for context")
+    .option(
+      "-d, --data-dir <path>",
+      "data directory for .md files (default: ~/troy_data)",
+    )
+    .action((opts: { messages?: string; dataDir?: string }) => {
+      const dataDir = getDataDir(opts.dataDir);
+      const systemPrompt = buildSystemPrompt(dataDir, opts.messages);
+      console.log(systemPrompt);
+    });
 
-  const dataDir = getDataDir(opts.dataDir);
-
-  if (opts.printSystemPrompt) {
-    const systemPrompt = buildSystemPrompt(dataDir, opts.messages);
-    console.log(systemPrompt);
-    process.exit(0);
-  }
-
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    console.error("Error: OPENROUTER_API_KEY environment variable is not set");
-    process.exit(1);
-  }
-
-  // openai/gpt-4o-mini: too generic and seemed to ignore system prompt.
-  // anthropic/claude-opus-4.5: decent results
-  //
-  // google/gemini-2.5-pro: looks like it googled things? not what I wanted.
-  //
-  // openai/gpt-5.2: decent, a little slow, asked follow-up questions
-  //
-  // anthropic/claude-sonnet-4.5: OK, not as good as opus, asked
-  // follow-up questions.
-  const model = process.env.OPENROUTER_MODEL || "anthropic/claude-opus-4.6";
-
-  const client = new OpenRouter({ apiKey });
-  const notesPath = join(dataDir, "NOTES.md");
-
-  const messages: Message[] = [
-    { role: "system", content: buildSystemPrompt(dataDir, opts.messages) },
-    { role: "user", content: opts.prompt },
-  ];
-
-  const content = await chat(client, model, messages, notesPath);
-  if (!content) {
-    console.error("Error: No response content from model");
-    process.exit(1);
-  }
-
-  console.log(content);
-
-  const logDir = join(homedir(), ".troy");
-  mkdirSync(logDir, { recursive: true });
-  const logFile = join(logDir, "history.log");
-  const timestamp = new Date().toISOString();
-  appendFileSync(
-    logFile,
-    `--- ${timestamp} [${model}] ---\n> ${opts.prompt}\n${content}\n\n`,
-  );
+  await program.parseAsync();
 }
 
 main();
