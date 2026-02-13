@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@openrouter/sdk": "^0.8.0",
-    "commander": "^14.0.3"
+    "commander": "^14.0.3",
+    "googleapis": "^171.4.0"
   }
 }
