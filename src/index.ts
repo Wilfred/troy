@@ -61,6 +61,14 @@ interface WeatherResponse {
   };
 }
 
+function assertCalendarWritesEnabled() {
+  if (!process.env.GOOGLE_CALENDAR_ALLOW_WRITES) {
+    throw new Error(
+      "Calendar edits are disabled. Set the GOOGLE_CALENDAR_ALLOW_WRITES environment variable to enable them.",
+    );
+  }
+}
+
 function createGoogleCalendarClient() {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -144,6 +152,7 @@ async function createCalendarEvent(args: {
   calendar_id?: string;
   timezone?: string;
 }): Promise<string> {
+  assertCalendarWritesEnabled();
   const calendar = createGoogleCalendarClient();
   const calendarId = args.calendar_id ?? "primary";
 
@@ -172,6 +181,7 @@ async function updateCalendarEvent(args: {
   calendar_id?: string;
   timezone?: string;
 }): Promise<string> {
+  assertCalendarWritesEnabled();
   const calendar = createGoogleCalendarClient();
   const calendarId = args.calendar_id ?? "primary";
 
@@ -202,6 +212,7 @@ async function deleteCalendarEvent(args: {
   event_id: string;
   calendar_id?: string;
 }): Promise<string> {
+  assertCalendarWritesEnabled();
   const calendar = createGoogleCalendarClient();
   const calendarId = args.calendar_id ?? "primary";
 
