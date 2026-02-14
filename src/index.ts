@@ -872,7 +872,12 @@ Environment variables:
         });
         await dataSource.destroy();
 
-        console.log(`${content} C${chatId}`);
+        const toolCount = toolsUsed.length;
+        const suffix =
+          toolCount > 0
+            ? `[C${chatId}, ${toolCount} tool ${toolCount === 1 ? "use" : "uses"}]`
+            : `[C${chatId}]`;
+        console.log(`${content} ${suffix}`);
       },
     );
 
@@ -960,7 +965,12 @@ Environment variables:
       await dataSource.destroy();
 
       if (content) {
-        console.log(`${content} C${chatId}`);
+        const toolCount = toolsUsed.length;
+        const suffix =
+          toolCount > 0
+            ? `[C${chatId}, ${toolCount} tool ${toolCount === 1 ? "use" : "uses"}]`
+            : `[C${chatId}]`;
+        console.log(`${content} ${suffix}`);
       }
     });
 
