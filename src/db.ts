@@ -86,4 +86,12 @@ async function logRequest(
   return Number(result.identifiers[0].id);
 }
 
-export { initDb, logRequest };
+async function getRequest(
+  dataSource: DataSource,
+  id: number,
+): Promise<RequestRow | null> {
+  const repo = dataSource.getRepository<RequestRow>("request");
+  return repo.findOneBy({ id });
+}
+
+export { initDb, logRequest, getRequest };
