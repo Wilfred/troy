@@ -12,6 +12,7 @@ import { Command } from "commander";
 import { OpenRouter } from "@openrouter/sdk";
 import { google } from "googleapis";
 import { getAllMessages, getRecentMessages } from "./messages.js";
+import { initDb, logRequest } from "./db.js";
 
 type Message =
   | { role: "system"; content: string }
@@ -610,6 +611,7 @@ async function chat(
   model: string,
   messages: Message[],
   notesPath: string,
+  toolsUsed: string[],
 ): Promise<string> {
   const completion = await client.chat.send({
     chatGenerationParams: {
@@ -634,6 +636,7 @@ async function chat(
     });
 
     for (const toolCall of msg.toolCalls) {
+      toolsUsed.push(toolCall.function.name);
       if (toolCall.function.name === "append_note") {
         const args = JSON.parse(toolCall.function.arguments) as {
           text: string;
@@ -777,7 +780,7 @@ async function chat(
       }
     }
 
-    return chat(client, model, messages, notesPath);
+    return chat(client, model, messages, notesPath, toolsUsed);
   }
 
   return (msg.content as string) || "";
@@ -839,22 +842,37 @@ Environment variables:
           { role: "user", content: opts.prompt },
         ];
 
-        const content = await chat(client, model, messages, notesPath);
+        const toolsUsed: string[] = [];
+        const startTime = Date.now();
+        const content = await chat(
+          client,
+          model,
+          messages,
+          notesPath,
+          toolsUsed,
+        );
+        const durationMs = Date.now() - startTime;
+
         if (!content) {
           console.error("Error: No response content from model");
           process.exit(1);
         }
 
-        console.log(content);
-
         const logDir = join(homedir(), ".troy");
         mkdirSync(logDir, { recursive: true });
-        const logFile = join(logDir, "history.log");
-        const timestamp = new Date().toISOString();
-        appendFileSync(
-          logFile,
-          `--- ${timestamp} [${model}] ---\n> ${opts.prompt}\n${content}\n\n`,
-        );
+        const dataSource = await initDb(join(logDir, "history.db"));
+        const chatId = await logRequest(dataSource, {
+          timestamp: new Date().toISOString(),
+          model,
+          command: "run",
+          prompt: opts.prompt,
+          toolsUsed,
+          response: content,
+          durationMs,
+        });
+        await dataSource.destroy();
+
+        console.log(`${content} C${chatId}`);
       },
     );
 
@@ -922,9 +940,27 @@ Environment variables:
         { role: "user", content: prompt },
       ];
 
-      const content = await chat(client, model, messages, notesPath);
+      const toolsUsed: string[] = [];
+      const startTime = Date.now();
+      const content = await chat(client, model, messages, notesPath, toolsUsed);
+      const durationMs = Date.now() - startTime;
+
+      const logDir = join(homedir(), ".troy");
+      mkdirSync(logDir, { recursive: true });
+      const dataSource = await initDb(join(logDir, "history.db"));
+      const chatId = await logRequest(dataSource, {
+        timestamp: new Date().toISOString(),
+        model,
+        command: "import",
+        prompt,
+        toolsUsed,
+        response: content,
+        durationMs,
+      });
+      await dataSource.destroy();
+
       if (content) {
-        console.log(content);
+        console.log(`${content} C${chatId}`);
       }
     });
 
