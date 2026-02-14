@@ -12,7 +12,7 @@ import { Command } from "commander";
 import { OpenRouter } from "@openrouter/sdk";
 import { google } from "googleapis";
 import { getAllMessages, getRecentMessages } from "./messages.js";
-import { initDb, logRequest } from "./db.js";
+import { initDb, logRequest, getRequest } from "./db.js";
 
 type Message =
   | { role: "system"; content: string }
@@ -961,6 +961,54 @@ Environment variables:
 
       if (content) {
         console.log(`${content} C${chatId}`);
+      }
+    });
+
+  program
+    .command("show")
+    .description("Look up a conversation by ID and print its data")
+    .argument("<id>", "conversation ID, e.g. C123 or 123")
+    .action(async (rawId: string) => {
+      const numericId = Number(rawId.replace(/^C/i, ""));
+      if (!Number.isInteger(numericId) || numericId <= 0) {
+        console.error(`Error: invalid conversation ID "${rawId}"`);
+        process.exit(1);
+        return;
+      }
+
+      const logDir = join(homedir(), ".troy");
+      const dataSource = await initDb(join(logDir, "history.db"));
+      const row = await getRequest(dataSource, numericId);
+      await dataSource.destroy();
+
+      if (!row) {
+        console.error(`Error: no conversation found with ID ${numericId}`);
+        process.exit(1);
+        return;
+      }
+
+      const toolsUsed = row.toolsUsed
+        ? (JSON.parse(row.toolsUsed) as string[]).join(", ")
+        : "(none)";
+
+      const entries: [string, string][] = [
+        ["ID", `C${row.id}`],
+        ["Timestamp", row.timestamp],
+        ["Model", row.model],
+        ["Command", row.command],
+        ["Duration", `${row.durationMs}ms`],
+        ["Tools Used", toolsUsed],
+        ["Prompt", row.prompt],
+        ["Response", row.response],
+      ];
+
+      const keyWidth = Math.max(...entries.map(([k]) => k.length));
+      const separator = "-".repeat(keyWidth + 3 + 60);
+
+      console.log(separator);
+      for (const [key, value] of entries) {
+        console.log(`${key.padEnd(keyWidth)} | ${value}`);
+        console.log(separator);
       }
     });
 
