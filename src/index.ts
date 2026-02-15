@@ -106,6 +106,7 @@ async function chat(
   messages: Message[],
   notesPath: string,
   toolsUsed: string[],
+  toolInputs: Array<{ name: string; args: unknown }>,
 ): Promise<string> {
   const completion = await client.chat.send({
     chatGenerationParams: {
@@ -130,7 +131,14 @@ async function chat(
     });
 
     for (const toolCall of msg.toolCalls) {
+      let parsedArgs: unknown;
+      try {
+        parsedArgs = JSON.parse(toolCall.function.arguments) as unknown;
+      } catch {
+        parsedArgs = toolCall.function.arguments;
+      }
       toolsUsed.push(toolCall.function.name);
+      toolInputs.push({ name: toolCall.function.name, args: parsedArgs });
       try {
         const result = await handleToolCall(
           toolCall.function.name,
@@ -151,7 +159,7 @@ async function chat(
       }
     }
 
-    return chat(client, model, messages, notesPath, toolsUsed);
+    return chat(client, model, messages, notesPath, toolsUsed, toolInputs);
   }
 
   return (msg.content as string) || "";
@@ -214,6 +222,7 @@ Environment variables:
         ];
 
         const toolsUsed: string[] = [];
+        const toolInputs: Array<{ name: string; args: unknown }> = [];
         const startTime = Date.now();
         const content = await chat(
           client,
@@ -221,6 +230,7 @@ Environment variables:
           messages,
           notesPath,
           toolsUsed,
+          toolInputs,
         );
         const durationMs = Date.now() - startTime;
 
@@ -238,6 +248,7 @@ Environment variables:
           command: "run",
           prompt: opts.prompt,
           toolsUsed,
+          toolInputs,
           response: content,
           durationMs,
         });
@@ -317,8 +328,16 @@ Environment variables:
       ];
 
       const toolsUsed: string[] = [];
+      const toolInputs: Array<{ name: string; args: unknown }> = [];
       const startTime = Date.now();
-      const content = await chat(client, model, messages, notesPath, toolsUsed);
+      const content = await chat(
+        client,
+        model,
+        messages,
+        notesPath,
+        toolsUsed,
+        toolInputs,
+      );
       const durationMs = Date.now() - startTime;
 
       const logDir = join(homedir(), ".troy");
@@ -330,6 +349,7 @@ Environment variables:
         command: "import",
         prompt,
         toolsUsed,
+        toolInputs,
         response: content,
         durationMs,
       });
@@ -372,6 +392,17 @@ Environment variables:
         ? (JSON.parse(row.toolsUsed) as string[]).join(", ")
         : "(none)";
 
+      const toolInputs = row.toolInputs
+        ? JSON.stringify(
+            JSON.parse(row.toolInputs) as Array<{
+              name: string;
+              args: unknown;
+            }>,
+            null,
+            2,
+          )
+        : "(none)";
+
       const entries: [string, string][] = [
         ["ID", `C${row.id}`],
         ["Timestamp", row.timestamp],
@@ -379,6 +410,7 @@ Environment variables:
         ["Command", row.command],
         ["Duration", `${row.durationMs}ms`],
         ["Tools Used", toolsUsed],
+        ["Tool Inputs", toolInputs],
         ["Prompt", row.prompt],
         ["Response", row.response],
       ];

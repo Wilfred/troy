@@ -9,6 +9,7 @@ interface RequestRow {
   command: string;
   prompt: string;
   toolsUsed: string | null;
+  toolInputs: string | null;
   response: string;
   durationMs: number;
 }
@@ -35,6 +36,11 @@ const RequestEntity = new EntitySchema<RequestRow>({
     },
     toolsUsed: {
       name: "tools_used",
+      type: "text",
+      nullable: true,
+    },
+    toolInputs: {
+      name: "tool_inputs",
       type: "text",
       nullable: true,
     },
@@ -69,6 +75,7 @@ async function logRequest(
     command: string;
     prompt: string;
     toolsUsed: string[];
+    toolInputs: Array<{ name: string; args: unknown }>;
     response: string;
     durationMs: number;
   },
@@ -80,6 +87,8 @@ async function logRequest(
     command: row.command,
     prompt: row.prompt,
     toolsUsed: row.toolsUsed.length > 0 ? JSON.stringify(row.toolsUsed) : null,
+    toolInputs:
+      row.toolInputs.length > 0 ? JSON.stringify(row.toolInputs) : null,
     response: row.response,
     durationMs: row.durationMs,
   });
