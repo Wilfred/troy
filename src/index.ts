@@ -7,6 +7,7 @@ import { getAllMessages, getRecentMessages } from "./messages.js";
 import { initDb, logRequest, getRequest } from "./db.js";
 import { tools, handleToolCall } from "./tools.js";
 import { startDiscordBot } from "./discord.js";
+import { ConversationEntry, writeConversationLog } from "./conversationlog.js";
 
 type Message =
   | { role: "system"; content: string }
@@ -108,6 +109,7 @@ async function chat(
   notesPath: string,
   toolsUsed: string[],
   toolInputs: Array<{ name: string; args: unknown }>,
+  conversationLog: ConversationEntry[],
 ): Promise<string> {
   const completion = await client.chat.send({
     chatGenerationParams: {
@@ -125,6 +127,13 @@ async function chat(
   }
 
   if (msg.toolCalls && msg.toolCalls.length > 0) {
+    if (msg.content) {
+      conversationLog.push({
+        kind: "response",
+        content: msg.content as string,
+      });
+    }
+
     messages.push({
       role: "assistant",
       content: msg.content as string | null | undefined,
@@ -140,6 +149,11 @@ async function chat(
       }
       toolsUsed.push(toolCall.function.name);
       toolInputs.push({ name: toolCall.function.name, args: parsedArgs });
+      conversationLog.push({
+        kind: "tool_input",
+        name: toolCall.function.name,
+        content: JSON.stringify(parsedArgs, null, 2),
+      });
       try {
         const result = await handleToolCall(
           toolCall.function.name,
@@ -151,16 +165,35 @@ async function chat(
           toolCallId: toolCall.id,
           content: result,
         });
+        conversationLog.push({
+          kind: "tool_output",
+          name: toolCall.function.name,
+          content: result,
+        });
       } catch (err) {
+        const errorMsg = `Error in ${toolCall.function.name}: ${err instanceof Error ? err.message : String(err)}`;
         messages.push({
           role: "tool",
           toolCallId: toolCall.id,
-          content: `Error in ${toolCall.function.name}: ${err instanceof Error ? err.message : String(err)}`,
+          content: errorMsg,
+        });
+        conversationLog.push({
+          kind: "tool_output",
+          name: toolCall.function.name,
+          content: errorMsg,
         });
       }
     }
 
-    return chat(client, model, messages, notesPath, toolsUsed, toolInputs);
+    return chat(
+      client,
+      model,
+      messages,
+      notesPath,
+      toolsUsed,
+      toolInputs,
+      conversationLog,
+    );
   }
 
   return (msg.content as string) || "";
@@ -224,6 +257,9 @@ Environment variables:
 
         const toolsUsed: string[] = [];
         const toolInputs: Array<{ name: string; args: unknown }> = [];
+        const conversationLog: ConversationEntry[] = [
+          { kind: "prompt", content: opts.prompt },
+        ];
         const startTime = Date.now();
         const content = await chat(
           client,
@@ -232,6 +268,7 @@ Environment variables:
           notesPath,
           toolsUsed,
           toolInputs,
+          conversationLog,
         );
         const durationMs = Date.now() - startTime;
 
@@ -239,6 +276,8 @@ Environment variables:
           console.error("Error: No response content from model");
           process.exit(1);
         }
+
+        conversationLog.push({ kind: "response", content });
 
         const logDir = join(homedir(), ".troy");
         mkdirSync(logDir, { recursive: true });
@@ -254,6 +293,8 @@ Environment variables:
           durationMs,
         });
         await dataSource.destroy();
+
+        writeConversationLog(logDir, chatId, conversationLog);
 
         const toolCount = toolsUsed.length;
         const suffix =
@@ -330,6 +371,9 @@ Environment variables:
 
       const toolsUsed: string[] = [];
       const toolInputs: Array<{ name: string; args: unknown }> = [];
+      const conversationLog: ConversationEntry[] = [
+        { kind: "prompt", content: prompt },
+      ];
       const startTime = Date.now();
       const content = await chat(
         client,
@@ -338,8 +382,13 @@ Environment variables:
         notesPath,
         toolsUsed,
         toolInputs,
+        conversationLog,
       );
       const durationMs = Date.now() - startTime;
+
+      if (content) {
+        conversationLog.push({ kind: "response", content });
+      }
 
       const logDir = join(homedir(), ".troy");
       mkdirSync(logDir, { recursive: true });
@@ -355,6 +404,8 @@ Environment variables:
         durationMs,
       });
       await dataSource.destroy();
+
+      writeConversationLog(logDir, chatId, conversationLog);
 
       if (content) {
         const toolCount = toolsUsed.length;
