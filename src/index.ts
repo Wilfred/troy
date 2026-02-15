@@ -6,6 +6,7 @@ import { OpenRouter } from "@openrouter/sdk";
 import { getAllMessages, getRecentMessages } from "./messages.js";
 import { initDb, logRequest, getRequest } from "./db.js";
 import { tools, handleToolCall } from "./tools.js";
+import { startDiscordBot } from "./discord.js";
 
 type Message =
   | { role: "system"; content: string }
@@ -423,6 +424,34 @@ Environment variables:
         console.log(`${key.padEnd(keyWidth)} | ${value}`);
         console.log(separator);
       }
+    });
+
+  program
+    .command("discord")
+    .description("Run Troy as a Discord bot")
+    .option(
+      "-d, --data-dir <path>",
+      "data directory for .md files (default: ~/troy_data)",
+    )
+    .addHelpText(
+      "after",
+      `
+Environment variables:
+  DISCORD_BOT_TOKEN        Discord bot token (required)
+  OPENROUTER_API_KEY       API key for OpenRouter (required)
+  OPENROUTER_MODEL         Model to use (default: anthropic/claude-opus-4.6)`,
+    )
+    .action(async (opts: { dataDir?: string }) => {
+      const token = process.env.DISCORD_BOT_TOKEN;
+      if (!token) {
+        console.error(
+          "Error: DISCORD_BOT_TOKEN environment variable is not set",
+        );
+        process.exit(1);
+      }
+
+      const dataDir = getDataDir(opts.dataDir);
+      await startDiscordBot(token, dataDir);
     });
 
   await program.parseAsync();
