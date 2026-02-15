@@ -157,7 +157,7 @@ async function chat(
   return (msg.content as string) || "";
 }
 
-async function main() {
+async function main(): Promise<void> {
   const program = new Command();
 
   program.name("troy").description("Agentic helper bot powered by OpenRouter");

@@ -7,6 +7,7 @@ export default tseslint.config(
   { ignores: ["dist/"] },
   {
     rules: {
+      "@typescript-eslint/explicit-function-return-type": "error",
       "no-restricted-syntax": [
         "error",
         {

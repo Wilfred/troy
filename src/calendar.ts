@@ -1,6 +1,6 @@
-import { google } from "googleapis";
+import { calendar_v3, google } from "googleapis";
 
-function assertCalendarWritesEnabled() {
+function assertCalendarWritesEnabled(): void {
   if (!process.env.GOOGLE_CALENDAR_ALLOW_WRITES) {
     throw new Error(
       "Calendar edits are disabled. Set the GOOGLE_CALENDAR_ALLOW_WRITES environment variable to enable them.",
@@ -8,7 +8,7 @@ function assertCalendarWritesEnabled() {
   }
 }
 
-function createGoogleCalendarClient() {
+function createGoogleCalendarClient(): calendar_v3.Calendar {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
   const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
