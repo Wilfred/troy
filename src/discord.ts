@@ -57,6 +57,7 @@ async function chatLoop(
   messages: ChatMessage[],
   notesPath: string,
   toolsUsed: string[],
+  toolInputs: Array<{ name: string; args: unknown }>,
 ): Promise<string> {
   const completion = await client.chat.send({
     chatGenerationParams: {
@@ -80,7 +81,14 @@ async function chatLoop(
     });
 
     for (const toolCall of msg.toolCalls) {
+      let parsedArgs: unknown;
+      try {
+        parsedArgs = JSON.parse(toolCall.function.arguments) as unknown;
+      } catch {
+        parsedArgs = toolCall.function.arguments;
+      }
       toolsUsed.push(toolCall.function.name);
+      toolInputs.push({ name: toolCall.function.name, args: parsedArgs });
       try {
         const result = await handleToolCall(
           toolCall.function.name,
@@ -101,7 +109,7 @@ async function chatLoop(
       }
     }
 
-    return chatLoop(client, model, messages, notesPath, toolsUsed);
+    return chatLoop(client, model, messages, notesPath, toolsUsed, toolInputs);
   }
 
   return (msg.content as string) || "";
@@ -147,11 +155,19 @@ async function handleDiscordMessage(
   ];
 
   const toolsUsed: string[] = [];
+  const toolInputs: Array<{ name: string; args: unknown }> = [];
   const startTime = Date.now();
 
   let content: string;
   try {
-    content = await chatLoop(openrouter, model, messages, notesPath, toolsUsed);
+    content = await chatLoop(
+      openrouter,
+      model,
+      messages,
+      notesPath,
+      toolsUsed,
+      toolInputs,
+    );
   } catch (err) {
     console.error("Error during chat:", err);
     await discordMsg.reply(
@@ -176,6 +192,7 @@ async function handleDiscordMessage(
     command: "discord",
     prompt,
     toolsUsed,
+    toolInputs,
     response: content,
     durationMs,
   });
