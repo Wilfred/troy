@@ -26,9 +26,10 @@ CI runs typecheck, lint, and format:check on Node 22.
 
 ## Architecture
 
-**Two source files:**
+**Source files — keep each file small and focused on a single responsibility:**
 
-- `src/index.ts` — CLI entry point, system prompt construction, chat loop, and tool handling
+- `src/index.ts` — CLI entry point, system prompt construction, and chat loop
+- `src/tools.ts` — Tool definitions (schemas) and tool handler implementations
 - `src/messages.ts` — Utilities for parsing and formatting chat message JSON files
 
 **CLI commands** (via Commander.js):
