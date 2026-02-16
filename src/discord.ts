@@ -80,7 +80,10 @@ async function chatLoop(
 
   if (msg.toolCalls && msg.toolCalls.length > 0) {
     if (msg.content) {
-      conversationLog.push({ kind: "response", content: msg.content as string });
+      conversationLog.push({
+        kind: "response",
+        content: msg.content as string,
+      });
     }
     messages.push({
       role: "assistant",
