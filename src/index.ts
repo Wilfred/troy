@@ -3,11 +3,14 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { Command } from "commander";
 import { OpenRouter } from "@openrouter/sdk";
-import { getRecentMessages } from "./messages.js";
-import { initDb, logRequest, getRequest } from "./db.js";
+import { getAllMessages, getRecentMessages } from "./messages.js";
 import { tools, handleToolCall } from "./tools.js";
 import { startDiscordBot } from "./discord.js";
-import { ConversationEntry, writeConversationLog } from "./conversationlog.js";
+import {
+  ConversationEntry,
+  nextChatId,
+  writeConversationLog,
+} from "./conversationlog.js";
 
 type Message =
   | { role: "system"; content: string }
@@ -260,7 +263,6 @@ Environment variables:
         const conversationLog: ConversationEntry[] = [
           { kind: "prompt", content: opts.prompt },
         ];
-        const startTime = Date.now();
         const content = await chat(
           client,
           model,
@@ -270,7 +272,6 @@ Environment variables:
           toolInputs,
           conversationLog,
         );
-        const durationMs = Date.now() - startTime;
 
         if (!content) {
           console.error("Error: No response content from model");
@@ -281,19 +282,7 @@ Environment variables:
 
         const logDir = join(homedir(), ".troy");
         mkdirSync(logDir, { recursive: true });
-        const dataSource = await initDb(join(logDir, "history.db"));
-        const chatId = await logRequest(dataSource, {
-          timestamp: new Date().toISOString(),
-          model,
-          command: "run",
-          prompt: opts.prompt,
-          toolsUsed,
-          toolInputs,
-          response: content,
-          durationMs,
-        });
-        await dataSource.destroy();
-
+        const chatId = nextChatId(logDir);
         writeConversationLog(logDir, chatId, conversationLog);
 
         const toolCount = toolsUsed.length;
@@ -320,10 +309,94 @@ Environment variables:
     });
 
   program
+    .command("import")
+    .description("Import past messages and update notes based on them")
+    .requiredOption(
+      "-m, --messages <file>",
+      "path to a messages JSON file to import",
+    )
+    .option(
+      "-d, --data-dir <path>",
+      "data directory for .md files (default: ~/troy_data)",
+    )
+    .addHelpText(
+      "after",
+      `
+Environment variables:
+  OPENROUTER_API_KEY       API key for OpenRouter (required)
+  OPENROUTER_MODEL         Model to use (default: anthropic/claude-opus-4.6)`,
+    )
+    .action(async (opts: { messages: string; dataDir?: string }) => {
+      const dataDir = getDataDir(opts.dataDir);
+
+      const apiKey = process.env.OPENROUTER_API_KEY;
+      if (!apiKey) {
+        console.error(
+          "Error: OPENROUTER_API_KEY environment variable is not set",
+        );
+        process.exit(1);
+      }
+
+      const model = process.env.OPENROUTER_MODEL || "anthropic/claude-opus-4.6";
+
+      const client = new OpenRouter({ apiKey });
+      const notesPath = join(dataDir, "rules", "NOTES.md");
+
+      const formattedMessages = getAllMessages(opts.messages);
+      const existingNotes = existsSync(notesPath)
+        ? readFileSync(notesPath, "utf-8")
+        : "";
+
+      const prompt =
+        `Review the following chat history and update your notes with any useful information about the users, their preferences, important facts, or anything worth remembering for future conversations.\n\n` +
+        `## Current notes\n\n${existingNotes || "(empty)"}\n\n` +
+        `## Chat history\n\n${formattedMessages}\n\n` +
+        `Use the append_note tool to save anything new you've learned. Do not duplicate information already in your notes.`;
+
+      const messages: Message[] = [
+        { role: "system", content: buildSystemPrompt(dataDir) },
+        { role: "user", content: prompt },
+      ];
+
+      const toolsUsed: string[] = [];
+      const toolInputs: Array<{ name: string; args: unknown }> = [];
+      const conversationLog: ConversationEntry[] = [
+        { kind: "prompt", content: prompt },
+      ];
+      const content = await chat(
+        client,
+        model,
+        messages,
+        notesPath,
+        toolsUsed,
+        toolInputs,
+        conversationLog,
+      );
+
+      if (content) {
+        conversationLog.push({ kind: "response", content });
+      }
+
+      const logDir = join(homedir(), ".troy");
+      mkdirSync(logDir, { recursive: true });
+      const chatId = nextChatId(logDir);
+      writeConversationLog(logDir, chatId, conversationLog);
+
+      if (content) {
+        const toolCount = toolsUsed.length;
+        const suffix =
+          toolCount > 0
+            ? `[C${chatId}, ${toolCount} tool ${toolCount === 1 ? "use" : "uses"}]`
+            : `[C${chatId}]`;
+        console.log(`${content} ${suffix}`);
+      }
+    });
+
+  program
     .command("show")
-    .description("Look up a conversation by ID and print its data")
+    .description("Look up a conversation by ID and print its log")
     .argument("<id>", "conversation ID, e.g. C123 or 123")
-    .action(async (rawId: string) => {
+    .action((rawId: string) => {
       const numericId = Number(rawId.replace(/^C/i, ""));
       if (!Number.isInteger(numericId) || numericId <= 0) {
         console.error(`Error: invalid conversation ID "${rawId}"`);
@@ -332,51 +405,14 @@ Environment variables:
       }
 
       const logDir = join(homedir(), ".troy");
-      const dataSource = await initDb(join(logDir, "history.db"));
-      const row = await getRequest(dataSource, numericId);
-      await dataSource.destroy();
-
-      if (!row) {
+      const logPath = join(logDir, "logs", `C${numericId}.log`);
+      if (!existsSync(logPath)) {
         console.error(`Error: no conversation found with ID ${numericId}`);
         process.exit(1);
         return;
       }
 
-      const toolsUsed = row.toolsUsed
-        ? (JSON.parse(row.toolsUsed) as string[]).join(", ")
-        : "(none)";
-
-      const toolInputs = row.toolInputs
-        ? JSON.stringify(
-            JSON.parse(row.toolInputs) as Array<{
-              name: string;
-              args: unknown;
-            }>,
-            null,
-            2,
-          )
-        : "(none)";
-
-      const entries: [string, string][] = [
-        ["ID", `C${row.id}`],
-        ["Timestamp", row.timestamp],
-        ["Model", row.model],
-        ["Command", row.command],
-        ["Duration", `${row.durationMs}ms`],
-        ["Tools Used", toolsUsed],
-        ["Tool Inputs", toolInputs],
-        ["Prompt", row.prompt],
-        ["Response", row.response],
-      ];
-
-      const keyWidth = Math.max(...entries.map(([k]) => k.length));
-      const separator = "-".repeat(keyWidth + 3 + 60);
-
-      console.log(separator);
-      for (const [key, value] of entries) {
-        console.log(`${key.padEnd(keyWidth)} | ${value}`);
-        console.log(separator);
-      }
+      console.log(readFileSync(logPath, "utf-8"));
     });
 
   program
