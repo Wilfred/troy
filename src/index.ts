@@ -202,6 +202,115 @@ async function chat(
   return (msg.content as string) || "";
 }
 
+async function runAction(opts: {
+  prompt: string;
+  messages?: string;
+  dataDir?: string;
+}): Promise<void> {
+  const dataDir = getDataDir(opts.dataDir);
+
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    console.error("Error: OPENROUTER_API_KEY environment variable is not set");
+    process.exit(1);
+  }
+
+  // openai/gpt-4o-mini: too generic and seemed to ignore system prompt.
+  // anthropic/claude-opus-4.5: decent results
+  //
+  // google/gemini-2.5-pro: looks like it googled things? not what I wanted.
+  //
+  // openai/gpt-5.2: decent, a little slow, asked follow-up questions
+  //
+  // anthropic/claude-sonnet-4.5: OK, not as good as opus, asked
+  // follow-up questions.
+  const model = process.env.OPENROUTER_MODEL || "anthropic/claude-opus-4.6";
+
+  const client = new OpenRouter({ apiKey });
+  const notesPath = join(dataDir, "rules", "NOTES.md");
+
+  const messages: Message[] = [
+    {
+      role: "system",
+      content: buildSystemPrompt(dataDir, opts.messages, opts.prompt),
+    },
+    { role: "user", content: opts.prompt },
+  ];
+
+  const toolsUsed: string[] = [];
+  const toolInputs: Array<{ name: string; args: unknown }> = [];
+  const conversationLog: ConversationEntry[] = [
+    { kind: "prompt", content: opts.prompt },
+  ];
+  const content = await chat(
+    client,
+    model,
+    messages,
+    notesPath,
+    toolsUsed,
+    toolInputs,
+    conversationLog,
+  );
+
+  if (!content) {
+    console.error("Error: No response content from model");
+    process.exit(1);
+  }
+
+  conversationLog.push({ kind: "response", content });
+
+  const logDir = join(homedir(), ".troy");
+  mkdirSync(logDir, { recursive: true });
+  const chatId = nextChatId(logDir);
+  writeConversationLog(logDir, chatId, conversationLog);
+
+  const toolCount = toolsUsed.length;
+  const suffix =
+    toolCount > 0
+      ? `[C${chatId}, ${toolCount} tool ${toolCount === 1 ? "use" : "uses"}]`
+      : `[C${chatId}]`;
+  console.log(`${content} ${suffix}`);
+}
+
+function printSystemAction(opts: {
+  messages?: string;
+  dataDir?: string;
+}): void {
+  const dataDir = getDataDir(opts.dataDir);
+  const systemPrompt = buildSystemPrompt(dataDir, opts.messages);
+  console.log(systemPrompt);
+}
+
+function showAction(rawId: string): void {
+  const numericId = Number(rawId.replace(/^C/i, ""));
+  if (!Number.isInteger(numericId) || numericId <= 0) {
+    console.error(`Error: invalid conversation ID "${rawId}"`);
+    process.exit(1);
+    return;
+  }
+
+  const logDir = join(homedir(), ".troy");
+  const logPath = join(logDir, "logs", `C${numericId}.log`);
+  if (!existsSync(logPath)) {
+    console.error(`Error: no conversation found with ID ${numericId}`);
+    process.exit(1);
+    return;
+  }
+
+  console.log(readFileSync(logPath, "utf-8"));
+}
+
+async function discordAction(opts: { dataDir?: string }): Promise<void> {
+  const token = process.env.DISCORD_BOT_TOKEN;
+  if (!token) {
+    console.error("Error: DISCORD_BOT_TOKEN environment variable is not set");
+    process.exit(1);
+  }
+
+  const dataDir = getDataDir(opts.dataDir);
+  await startDiscordBot(token, dataDir);
+}
+
 async function main(): Promise<void> {
   const program = new Command();
 
@@ -223,76 +332,7 @@ Environment variables:
   OPENROUTER_API_KEY       API key for OpenRouter (required)
   OPENROUTER_MODEL         Model to use (default: anthropic/claude-opus-4.6)`,
     )
-    .action(
-      async (opts: { prompt: string; messages?: string; dataDir?: string }) => {
-        const dataDir = getDataDir(opts.dataDir);
-
-        const apiKey = process.env.OPENROUTER_API_KEY;
-        if (!apiKey) {
-          console.error(
-            "Error: OPENROUTER_API_KEY environment variable is not set",
-          );
-          process.exit(1);
-        }
-
-        // openai/gpt-4o-mini: too generic and seemed to ignore system prompt.
-        // anthropic/claude-opus-4.5: decent results
-        //
-        // google/gemini-2.5-pro: looks like it googled things? not what I wanted.
-        //
-        // openai/gpt-5.2: decent, a little slow, asked follow-up questions
-        //
-        // anthropic/claude-sonnet-4.5: OK, not as good as opus, asked
-        // follow-up questions.
-        const model =
-          process.env.OPENROUTER_MODEL || "anthropic/claude-opus-4.6";
-
-        const client = new OpenRouter({ apiKey });
-        const notesPath = join(dataDir, "rules", "NOTES.md");
-
-        const messages: Message[] = [
-          {
-            role: "system",
-            content: buildSystemPrompt(dataDir, opts.messages, opts.prompt),
-          },
-          { role: "user", content: opts.prompt },
-        ];
-
-        const toolsUsed: string[] = [];
-        const toolInputs: Array<{ name: string; args: unknown }> = [];
-        const conversationLog: ConversationEntry[] = [
-          { kind: "prompt", content: opts.prompt },
-        ];
-        const content = await chat(
-          client,
-          model,
-          messages,
-          notesPath,
-          toolsUsed,
-          toolInputs,
-          conversationLog,
-        );
-
-        if (!content) {
-          console.error("Error: No response content from model");
-          process.exit(1);
-        }
-
-        conversationLog.push({ kind: "response", content });
-
-        const logDir = join(homedir(), ".troy");
-        mkdirSync(logDir, { recursive: true });
-        const chatId = nextChatId(logDir);
-        writeConversationLog(logDir, chatId, conversationLog);
-
-        const toolCount = toolsUsed.length;
-        const suffix =
-          toolCount > 0
-            ? `[C${chatId}, ${toolCount} tool ${toolCount === 1 ? "use" : "uses"}]`
-            : `[C${chatId}]`;
-        console.log(`${content} ${suffix}`);
-      },
-    );
+    .action(runAction);
 
   program
     .command("print-system")
@@ -302,34 +342,13 @@ Environment variables:
       "-d, --data-dir <path>",
       "data directory for .md files (default: ~/troy_data)",
     )
-    .action((opts: { messages?: string; dataDir?: string }) => {
-      const dataDir = getDataDir(opts.dataDir);
-      const systemPrompt = buildSystemPrompt(dataDir, opts.messages);
-      console.log(systemPrompt);
-    });
+    .action(printSystemAction);
 
   program
     .command("show")
     .description("Look up a conversation by ID and print its log")
     .argument("<id>", "conversation ID, e.g. C123 or 123")
-    .action((rawId: string) => {
-      const numericId = Number(rawId.replace(/^C/i, ""));
-      if (!Number.isInteger(numericId) || numericId <= 0) {
-        console.error(`Error: invalid conversation ID "${rawId}"`);
-        process.exit(1);
-        return;
-      }
-
-      const logDir = join(homedir(), ".troy");
-      const logPath = join(logDir, "logs", `C${numericId}.log`);
-      if (!existsSync(logPath)) {
-        console.error(`Error: no conversation found with ID ${numericId}`);
-        process.exit(1);
-        return;
-      }
-
-      console.log(readFileSync(logPath, "utf-8"));
-    });
+    .action(showAction);
 
   program
     .command("discord")
@@ -346,18 +365,7 @@ Environment variables:
   OPENROUTER_API_KEY       API key for OpenRouter (required)
   OPENROUTER_MODEL         Model to use (default: anthropic/claude-opus-4.6)`,
     )
-    .action(async (opts: { dataDir?: string }) => {
-      const token = process.env.DISCORD_BOT_TOKEN;
-      if (!token) {
-        console.error(
-          "Error: DISCORD_BOT_TOKEN environment variable is not set",
-        );
-        process.exit(1);
-      }
-
-      const dataDir = getDataDir(opts.dataDir);
-      await startDiscordBot(token, dataDir);
-    });
+    .action(discordAction);
 
   await program.parseAsync();
 }
