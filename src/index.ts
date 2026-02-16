@@ -363,7 +363,8 @@ Environment variables:
 Environment variables:
   DISCORD_BOT_TOKEN        Discord bot token (required)
   OPENROUTER_API_KEY       API key for OpenRouter (required)
-  OPENROUTER_MODEL         Model to use (default: anthropic/claude-opus-4.6)`,
+  OPENROUTER_MODEL         Model to use (default: anthropic/claude-opus-4.6)
+  DISCORD_ALLOWLIST        Comma-separated Discord user IDs allowed to use the bot (optional; if unset, all users are allowed)`,
     )
     .action(discordAction);
 
