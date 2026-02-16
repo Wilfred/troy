@@ -252,6 +252,12 @@ export async function startDiscordBot(
   const model = process.env.OPENROUTER_MODEL || "anthropic/claude-opus-4.6";
   const openrouter = new OpenRouter({ apiKey });
 
+  const allowlist: Set<string> | null = process.env.DISCORD_ALLOWLIST
+    ? new Set(
+        process.env.DISCORD_ALLOWLIST.split(",").map((id: string) => id.trim()).filter(Boolean),
+      )
+    : null;
+
   mkdirSync(join(dataDir, "rules"), { recursive: true });
   mkdirSync(join(dataDir, "skills"), { recursive: true });
 
@@ -271,6 +277,8 @@ export async function startDiscordBot(
 
   client.on(Events.MessageCreate, async (msg) => {
     if (msg.author.bot) return;
+
+    if (allowlist !== null && !allowlist.has(msg.author.id)) return;
 
     const isDM = !msg.guild;
     const isMentioned = msg.mentions.has(client.user!);
