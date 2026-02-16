@@ -45,13 +45,18 @@ describe("conversationlog", () => {
   it("formats tool input and output with name", () => {
     const entries: ConversationEntry[] = [
       { kind: "tool_input", name: "calendar", content: "get today" },
-      { kind: "tool_output", name: "calendar", content: "Vet appointment" },
+      {
+        kind: "tool_output",
+        name: "calendar",
+        content: "Vet appointment",
+        duration_ms: 150,
+      },
     ];
     const result = formatConversationLog(entries);
     assert.equal(
       result,
       "Tool Input name=calendar:\n  get today\n\n" +
-        "Tool Output name=calendar:\n  Vet appointment\n",
+        "Tool Output name=calendar duration=150ms:\n  Vet appointment\n",
     );
   });
 
@@ -67,14 +72,19 @@ describe("conversationlog", () => {
     const entries: ConversationEntry[] = [
       { kind: "prompt", content: "foo bar" },
       { kind: "tool_input", name: "calendar", content: "get today" },
-      { kind: "tool_output", name: "calendar", content: "Vet appointment" },
+      {
+        kind: "tool_output",
+        name: "calendar",
+        content: "Vet appointment",
+        duration_ms: 230,
+      },
       { kind: "response", content: "You have a vet appointment" },
     ];
     const result = formatConversationLog(entries);
     const expected =
       "Prompt:\n  foo bar\n\n" +
       "Tool Input name=calendar:\n  get today\n\n" +
-      "Tool Output name=calendar:\n  Vet appointment\n\n" +
+      "Tool Output name=calendar duration=230ms:\n  Vet appointment\n\n" +
       "Response:\n  You have a vet appointment\n";
     assert.equal(result, expected);
   });

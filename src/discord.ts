@@ -105,12 +105,14 @@ async function chatLoop(
         name: toolCall.function.name,
         content: JSON.stringify(parsedArgs, null, 2),
       });
+      const startTime = Date.now();
       try {
         const result = await handleToolCall(
           toolCall.function.name,
           toolCall.function.arguments,
           notesPath,
         );
+        const duration_ms = Date.now() - startTime;
         messages.push({
           role: "tool",
           toolCallId: toolCall.id,
@@ -120,8 +122,10 @@ async function chatLoop(
           kind: "tool_output",
           name: toolCall.function.name,
           content: result,
+          duration_ms,
         });
       } catch (err) {
+        const duration_ms = Date.now() - startTime;
         const errorMsg = `Error in ${toolCall.function.name}: ${err instanceof Error ? err.message : String(err)}`;
         messages.push({
           role: "tool",
@@ -132,6 +136,7 @@ async function chatLoop(
           kind: "tool_output",
           name: toolCall.function.name,
           content: errorMsg,
+          duration_ms,
         });
       }
     }

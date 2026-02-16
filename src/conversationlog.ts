@@ -5,7 +5,7 @@ type ConversationEntry =
   | { kind: "prompt"; content: string }
   | { kind: "response"; content: string }
   | { kind: "tool_input"; name: string; content: string }
-  | { kind: "tool_output"; name: string; content: string };
+  | { kind: "tool_output"; name: string; content: string; duration_ms: number };
 
 function indentBlock(text: string): string {
   return text
@@ -23,7 +23,7 @@ function formatEntry(entry: ConversationEntry): string {
     case "tool_input":
       return `Tool Input name=${entry.name}:\n${indentBlock(entry.content)}`;
     case "tool_output":
-      return `Tool Output name=${entry.name}:\n${indentBlock(entry.content)}`;
+      return `Tool Output name=${entry.name} duration=${entry.duration_ms}ms:\n${indentBlock(entry.content)}`;
   }
 }
 
