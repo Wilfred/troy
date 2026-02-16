@@ -10,7 +10,11 @@ import {
 } from "discord.js";
 import { OpenRouter } from "@openrouter/sdk";
 import { tools, handleToolCall } from "./tools.js";
-import { initDb, logRequest } from "./db.js";
+import {
+  ConversationEntry,
+  nextChatId,
+  writeConversationLog,
+} from "./conversationlog.js";
 
 type ChatMessage =
   | { role: "system"; content: string }
@@ -58,6 +62,7 @@ async function chatLoop(
   notesPath: string,
   toolsUsed: string[],
   toolInputs: Array<{ name: string; args: unknown }>,
+  conversationLog: ConversationEntry[],
 ): Promise<string> {
   const completion = await client.chat.send({
     chatGenerationParams: {
@@ -74,6 +79,9 @@ async function chatLoop(
   }
 
   if (msg.toolCalls && msg.toolCalls.length > 0) {
+    if (msg.content) {
+      conversationLog.push({ kind: "response", content: msg.content as string });
+    }
     messages.push({
       role: "assistant",
       content: msg.content as string | null | undefined,
@@ -89,6 +97,11 @@ async function chatLoop(
       }
       toolsUsed.push(toolCall.function.name);
       toolInputs.push({ name: toolCall.function.name, args: parsedArgs });
+      conversationLog.push({
+        kind: "tool_input",
+        name: toolCall.function.name,
+        content: JSON.stringify(parsedArgs, null, 2),
+      });
       try {
         const result = await handleToolCall(
           toolCall.function.name,
@@ -100,16 +113,35 @@ async function chatLoop(
           toolCallId: toolCall.id,
           content: result,
         });
+        conversationLog.push({
+          kind: "tool_output",
+          name: toolCall.function.name,
+          content: result,
+        });
       } catch (err) {
+        const errorMsg = `Error in ${toolCall.function.name}: ${err instanceof Error ? err.message : String(err)}`;
         messages.push({
           role: "tool",
           toolCallId: toolCall.id,
-          content: `Error in ${toolCall.function.name}: ${err instanceof Error ? err.message : String(err)}`,
+          content: errorMsg,
+        });
+        conversationLog.push({
+          kind: "tool_output",
+          name: toolCall.function.name,
+          content: errorMsg,
         });
       }
     }
 
-    return chatLoop(client, model, messages, notesPath, toolsUsed, toolInputs);
+    return chatLoop(
+      client,
+      model,
+      messages,
+      notesPath,
+      toolsUsed,
+      toolInputs,
+      conversationLog,
+    );
   }
 
   return (msg.content as string) || "";
@@ -156,7 +188,9 @@ async function handleDiscordMessage(
 
   const toolsUsed: string[] = [];
   const toolInputs: Array<{ name: string; args: unknown }> = [];
-  const startTime = Date.now();
+  const conversationLog: ConversationEntry[] = [
+    { kind: "prompt", content: prompt },
+  ];
 
   let content: string;
   try {
@@ -167,6 +201,7 @@ async function handleDiscordMessage(
       notesPath,
       toolsUsed,
       toolInputs,
+      conversationLog,
     );
   } catch (err) {
     console.error("Error during chat:", err);
@@ -176,27 +211,17 @@ async function handleDiscordMessage(
     return;
   }
 
-  const durationMs = Date.now() - startTime;
-
   if (!content) {
     await discordMsg.reply("Sorry, I didn't get a response.");
     return;
   }
 
+  conversationLog.push({ kind: "response", content });
+
   const logDir = join(homedir(), ".troy");
   mkdirSync(logDir, { recursive: true });
-  const dataSource = await initDb(join(logDir, "history.db"));
-  const chatId = await logRequest(dataSource, {
-    timestamp: new Date().toISOString(),
-    model,
-    command: "discord",
-    prompt,
-    toolsUsed,
-    toolInputs,
-    response: content,
-    durationMs,
-  });
-  await dataSource.destroy();
+  const chatId = nextChatId(logDir);
+  writeConversationLog(logDir, chatId, conversationLog);
 
   const toolCount = toolsUsed.length;
   const suffix =

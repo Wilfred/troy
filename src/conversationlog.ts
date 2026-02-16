@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 type ConversationEntry =
@@ -43,4 +43,20 @@ function writeConversationLog(
   return filePath;
 }
 
-export { ConversationEntry, formatConversationLog, writeConversationLog };
+function nextChatId(logDir: string): number {
+  const dir = join(logDir, "logs");
+  if (!existsSync(dir)) return 1;
+  const files = readdirSync(dir);
+  const ids = files
+    .map((f: string) => /^C(\d+)\.log$/.exec(f))
+    .filter((m): m is RegExpExecArray => m !== null)
+    .map((m) => Number(m[1]));
+  return ids.length > 0 ? Math.max(...ids) + 1 : 1;
+}
+
+export {
+  ConversationEntry,
+  formatConversationLog,
+  nextChatId,
+  writeConversationLog,
+};
