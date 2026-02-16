@@ -37,7 +37,6 @@ CI runs typecheck, lint, and format:check on Node 22.
 **CLI commands** (via Commander.js):
 
 - `troy run -p <prompt>` — Send a prompt to the model
-- `troy print-system` — Display the constructed system prompt
 - `troy import -m <file>` — Import chat history and extract learnings into NOTES.md
 
 ## Code Conventions
