@@ -259,12 +259,6 @@ async function runAction(opts: {
   console.log(`${content} ${suffix}`);
 }
 
-function printSystemAction(opts: { dataDir?: string }): void {
-  const dataDir = getDataDir(opts.dataDir);
-  const systemPrompt = buildSystemPrompt(dataDir);
-  console.log(systemPrompt);
-}
-
 function showAction(rawId: string): void {
   const numericId = Number(rawId.replace(/^C/i, ""));
   if (!Number.isInteger(numericId) || numericId <= 0) {
@@ -316,15 +310,6 @@ Environment variables:
   OPENROUTER_MODEL         Model to use (default: anthropic/claude-opus-4.6)`,
     )
     .action(runAction);
-
-  program
-    .command("print-system")
-    .description("Print the system prompt and exit")
-    .option(
-      "-d, --data-dir <path>",
-      "data directory for .md files (default: ~/troy_data)",
-    )
-    .action(printSystemAction);
 
   program
     .command("show")
