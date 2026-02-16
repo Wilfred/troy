@@ -46,5 +46,4 @@ describe("messages", () => {
     const result = getRecentMessages(path, 5);
     assert.equal(result, "");
   });
-
 });

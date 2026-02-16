@@ -60,4 +60,3 @@ export function getRecentMessages(
   const recent = messages.slice(-count);
   return formatGroupedMessages(recent);
 }
-
