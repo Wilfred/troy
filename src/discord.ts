@@ -252,11 +252,17 @@ export async function startDiscordBot(
   const model = process.env.OPENROUTER_MODEL || "anthropic/claude-opus-4.6";
   const openrouter = new OpenRouter({ apiKey });
 
-  const allowlist: Set<string> | null = process.env.DISCORD_ALLOWLIST
-    ? new Set(
-        process.env.DISCORD_ALLOWLIST.split(",").map((id: string) => id.trim()).filter(Boolean),
-      )
-    : null;
+  const rawAllowlist = process.env.DISCORD_ALLOWLIST;
+  if (!rawAllowlist) {
+    console.error("Error: DISCORD_ALLOWLIST environment variable is not set");
+    process.exit(1);
+  }
+  const allowlist = new Set(
+    rawAllowlist
+      .split(",")
+      .map((id: string) => id.trim())
+      .filter(Boolean),
+  );
 
   mkdirSync(join(dataDir, "rules"), { recursive: true });
   mkdirSync(join(dataDir, "skills"), { recursive: true });
@@ -278,7 +284,7 @@ export async function startDiscordBot(
   client.on(Events.MessageCreate, async (msg) => {
     if (msg.author.bot) return;
 
-    if (allowlist !== null && !allowlist.has(msg.author.id)) return;
+    if (!allowlist.has(msg.author.id)) return;
 
     const isDM = !msg.guild;
     const isMentioned = msg.mentions.has(client.user!);
