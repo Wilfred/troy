@@ -6,6 +6,7 @@ import {
 } from "node:fs";
 import { weatherTool, handleWeatherToolCall } from "./weather.js";
 import { calendarTools, handleCalendarToolCall } from "./calendar.js";
+import { sessionTool, handleSessionToolCall } from "./session.js";
 
 const noteTools = [
   {
@@ -51,7 +52,7 @@ const noteTools = [
   },
 ];
 
-export const tools = [...noteTools, weatherTool, ...calendarTools];
+export const tools = [...noteTools, weatherTool, ...calendarTools, sessionTool];
 
 export async function handleToolCall(
   name: string,
@@ -82,6 +83,10 @@ export async function handleToolCall(
 
   if (name === "get_weather") {
     return await handleWeatherToolCall(argsJson);
+  }
+
+  if (name === "trigger_session") {
+    return await handleSessionToolCall(argsJson);
   }
 
   const calendarResult = await handleCalendarToolCall(name, argsJson);
