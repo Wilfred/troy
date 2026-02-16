@@ -3,7 +3,6 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { Command } from "commander";
 import { OpenRouter } from "@openrouter/sdk";
-import { getRecentMessages } from "./messages.js";
 import { tools, handleToolCall } from "./tools.js";
 import { startDiscordBot } from "./discord.js";
 import {
@@ -60,11 +59,7 @@ function loadMatchingSkills(skillsDir: string, prompt: string): string[] {
   return result;
 }
 
-function buildSystemPrompt(
-  dataDir: string,
-  messagesFile?: string,
-  prompt?: string,
-): string {
+function buildSystemPrompt(dataDir: string, prompt?: string): string {
   let systemPrompt = readFileSync(
     new URL("../SYSTEM.md", import.meta.url),
     "utf-8",
@@ -93,13 +88,6 @@ function buildSystemPrompt(
   const currentUser = process.env.USER;
   if (currentUser) {
     systemPrompt += `\nThe current user's name is ${currentUser}.`;
-  }
-
-  if (messagesFile) {
-    const recentMessages = getRecentMessages(messagesFile, 20);
-    if (recentMessages) {
-      systemPrompt += `\n\n## Recent messages\n\n${recentMessages}`;
-    }
   }
 
   return systemPrompt;
@@ -204,7 +192,6 @@ async function chat(
 
 async function runAction(opts: {
   prompt: string;
-  messages?: string;
   dataDir?: string;
 }): Promise<void> {
   const dataDir = getDataDir(opts.dataDir);
@@ -232,7 +219,7 @@ async function runAction(opts: {
   const messages: Message[] = [
     {
       role: "system",
-      content: buildSystemPrompt(dataDir, opts.messages, opts.prompt),
+      content: buildSystemPrompt(dataDir, opts.prompt),
     },
     { role: "user", content: opts.prompt },
   ];
@@ -272,12 +259,9 @@ async function runAction(opts: {
   console.log(`${content} ${suffix}`);
 }
 
-function printSystemAction(opts: {
-  messages?: string;
-  dataDir?: string;
-}): void {
+function printSystemAction(opts: { dataDir?: string }): void {
   const dataDir = getDataDir(opts.dataDir);
-  const systemPrompt = buildSystemPrompt(dataDir, opts.messages);
+  const systemPrompt = buildSystemPrompt(dataDir);
   console.log(systemPrompt);
 }
 
@@ -320,7 +304,6 @@ async function main(): Promise<void> {
     .command("run")
     .description("Send a prompt to the model")
     .requiredOption("-p, --prompt <string>", "the prompt to send to the model")
-    .option("-m, --messages <file>", "path to a messages JSON file for context")
     .option(
       "-d, --data-dir <path>",
       "data directory for .md files (default: ~/troy_data)",
@@ -337,7 +320,6 @@ Environment variables:
   program
     .command("print-system")
     .description("Print the system prompt and exit")
-    .option("-m, --messages <file>", "path to a messages JSON file for context")
     .option(
       "-d, --data-dir <path>",
       "data directory for .md files (default: ~/troy_data)",
