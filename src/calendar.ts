@@ -24,6 +24,10 @@ function createGoogleCalendarClient(): calendar_v3.Calendar {
   return google.calendar({ version: "v3", auth });
 }
 
+function defaultCalendarId(): string {
+  return process.env.GOOGLE_CALENDAR_ID ?? "primary";
+}
+
 function isDateOnly(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
@@ -45,7 +49,7 @@ async function listCalendarEvents(args: {
   calendar_id?: string;
 }): Promise<string> {
   const calendar = createGoogleCalendarClient();
-  const calendarId = args.calendar_id ?? "primary";
+  const calendarId = args.calendar_id ?? defaultCalendarId();
   const timeMin = args.time_min ?? new Date().toISOString();
   const timeMax =
     args.time_max ??
@@ -93,7 +97,7 @@ async function createCalendarEvent(args: {
 }): Promise<string> {
   assertCalendarWritesEnabled();
   const calendar = createGoogleCalendarClient();
-  const calendarId = args.calendar_id ?? "primary";
+  const calendarId = args.calendar_id ?? defaultCalendarId();
 
   const response = await calendar.events.insert({
     calendarId,
@@ -122,7 +126,7 @@ async function updateCalendarEvent(args: {
 }): Promise<string> {
   assertCalendarWritesEnabled();
   const calendar = createGoogleCalendarClient();
-  const calendarId = args.calendar_id ?? "primary";
+  const calendarId = args.calendar_id ?? defaultCalendarId();
 
   const existing = await calendar.events.get({
     calendarId,
@@ -153,7 +157,7 @@ async function deleteCalendarEvent(args: {
 }): Promise<string> {
   assertCalendarWritesEnabled();
   const calendar = createGoogleCalendarClient();
-  const calendarId = args.calendar_id ?? "primary";
+  const calendarId = args.calendar_id ?? defaultCalendarId();
 
   await calendar.events.delete({
     calendarId,
@@ -190,7 +194,7 @@ export const calendarTools = [
           calendar_id: {
             type: "string",
             description:
-              "Calendar ID to query (default: 'primary' for the user's main calendar).",
+              "Calendar ID to query (defaults to GOOGLE_CALENDAR_ID env var, or 'primary' if unset).",
           },
         },
         required: [],
@@ -231,7 +235,7 @@ export const calendarTools = [
           calendar_id: {
             type: "string",
             description:
-              "Calendar ID to add the event to (default: 'primary').",
+              "Calendar ID to add the event to (defaults to GOOGLE_CALENDAR_ID env var, or 'primary' if unset).",
           },
           timezone: {
             type: "string",
@@ -280,7 +284,7 @@ export const calendarTools = [
           calendar_id: {
             type: "string",
             description:
-              "Calendar ID containing the event (default: 'primary').",
+              "Calendar ID containing the event (defaults to GOOGLE_CALENDAR_ID env var, or 'primary' if unset).",
           },
           timezone: {
             type: "string",
@@ -308,7 +312,7 @@ export const calendarTools = [
           calendar_id: {
             type: "string",
             description:
-              "Calendar ID containing the event (default: 'primary').",
+              "Calendar ID containing the event (defaults to GOOGLE_CALENDAR_ID env var, or 'primary' if unset).",
           },
         },
         required: ["event_id"],
