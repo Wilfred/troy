@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { Command } from "commander";
 import { OpenRouter } from "@openrouter/sdk";
-import { tools, handleToolCall } from "./tools.js";
+import { type ToolMode, toolsForMode, handleToolCall } from "./tools.js";
 import { startDiscordBot } from "./discord.js";
 import {
   ConversationEntry,
@@ -108,12 +108,13 @@ async function chat(
   toolsUsed: string[],
   toolInputs: Array<{ name: string; args: unknown }>,
   conversationLog: ConversationEntry[],
+  mode: ToolMode,
 ): Promise<string> {
   const completion = await client.chat.send({
     chatGenerationParams: {
       model,
       messages,
-      tools,
+      tools: toolsForMode(mode),
     },
   });
 
@@ -138,6 +139,7 @@ async function chat(
       toolCalls: msg.toolCalls,
     });
 
+    let nextMode = mode;
     for (const toolCall of msg.toolCalls) {
       let parsedArgs: unknown;
       try {
@@ -153,6 +155,9 @@ async function chat(
         content: JSON.stringify(parsedArgs, null, 2),
       });
       log.info(`Tool call: ${toolCall.function.name}`);
+      if (toolCall.function.name === "switch_to_untrusted") {
+        nextMode = "untrusted";
+      }
       const startTime = Date.now();
       try {
         const result = await handleToolCall(
@@ -201,6 +206,7 @@ async function chat(
       toolsUsed,
       toolInputs,
       conversationLog,
+      nextMode,
     );
   }
 
@@ -255,6 +261,7 @@ async function runAction(opts: {
     toolsUsed,
     toolInputs,
     conversationLog,
+    "trusted",
   );
 
   if (!content) {

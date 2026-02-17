@@ -9,7 +9,7 @@ import {
   Partials,
 } from "discord.js";
 import { OpenRouter } from "@openrouter/sdk";
-import { tools, handleToolCall } from "./tools.js";
+import { type ToolMode, toolsForMode, handleToolCall } from "./tools.js";
 import {
   ConversationEntry,
   nextChatId,
@@ -64,12 +64,13 @@ async function chatLoop(
   toolsUsed: string[],
   toolInputs: Array<{ name: string; args: unknown }>,
   conversationLog: ConversationEntry[],
+  mode: ToolMode,
 ): Promise<string> {
   const completion = await client.chat.send({
     chatGenerationParams: {
       model,
       messages,
-      tools,
+      tools: toolsForMode(mode),
     },
   });
 
@@ -92,6 +93,7 @@ async function chatLoop(
       toolCalls: msg.toolCalls,
     });
 
+    let nextMode = mode;
     for (const toolCall of msg.toolCalls) {
       let parsedArgs: unknown;
       try {
@@ -107,6 +109,9 @@ async function chatLoop(
         content: JSON.stringify(parsedArgs, null, 2),
       });
       log.info(`Tool call: ${toolCall.function.name}`);
+      if (toolCall.function.name === "switch_to_untrusted") {
+        nextMode = "untrusted";
+      }
       const startTime = Date.now();
       try {
         const result = await handleToolCall(
@@ -155,6 +160,7 @@ async function chatLoop(
       toolsUsed,
       toolInputs,
       conversationLog,
+      nextMode,
     );
   }
 
@@ -218,6 +224,7 @@ async function handleDiscordMessage(
       toolsUsed,
       toolInputs,
       conversationLog,
+      "trusted",
     );
   } catch (err) {
     log.error(

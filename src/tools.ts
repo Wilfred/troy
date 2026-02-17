@@ -14,6 +14,8 @@ import {
 } from "./search.js";
 import { log } from "./logger.js";
 
+export type ToolMode = "trusted" | "untrusted";
+
 const noteTools = [
   {
     type: "function" as const,
@@ -58,12 +60,45 @@ const noteTools = [
   },
 ];
 
-export const tools = [
+const switchToUntrustedTool = {
+  type: "function" as const,
+  function: {
+    name: "switch_to_untrusted",
+    description:
+      "Switch to untrusted tool mode. In this mode, only read-only tools are available and you cannot modify notes or calendar events. This transition is one-way and cannot be reversed.",
+    parameters: {
+      type: "object",
+      properties: {},
+      required: [],
+    },
+  },
+};
+
+const readOnlyCalendarTools = calendarTools.filter(
+  (t) => t.function.name === "list_calendar_events",
+);
+
+const searchTools = process.env.BRAVE_SEARCH_API_KEY
+  ? [searchTool, fetchTool]
+  : [];
+
+export const trustedTools = [
   ...noteTools,
   weatherTool,
   ...calendarTools,
-  ...(process.env.BRAVE_SEARCH_API_KEY ? [searchTool, fetchTool] : []),
+  ...searchTools,
+  switchToUntrustedTool,
 ];
+
+export const untrustedTools = [
+  weatherTool,
+  ...readOnlyCalendarTools,
+  ...searchTools,
+];
+
+export function toolsForMode(mode: ToolMode): typeof trustedTools {
+  return mode === "trusted" ? trustedTools : untrustedTools;
+}
 
 export async function handleToolCall(
   name: string,
@@ -71,6 +106,11 @@ export async function handleToolCall(
   notesPath: string,
 ): Promise<string> {
   log.debug(`Handling tool: ${name}`);
+
+  if (name === "switch_to_untrusted") {
+    log.info("Switching to untrusted tool mode");
+    return "Switched to untrusted tool mode. Only read-only tools are now available.";
+  }
 
   if (name === "append_note") {
     const args = JSON.parse(argsJson) as { text: string };
