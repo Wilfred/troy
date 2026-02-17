@@ -64,3 +64,49 @@ export async function handleSearchToolCall(argsJson: string): Promise<string> {
   const args = JSON.parse(argsJson) as { query: string };
   return await searchWeb(args.query);
 }
+
+async function fetchPage(url: string): Promise<string> {
+  const response = await fetch(url, {
+    headers: { "User-Agent": "Troy/1.0" },
+  });
+
+  if (!response.ok) {
+    return `Error: fetch returned ${response.status} ${response.statusText}`;
+  }
+
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.includes("text/") && !contentType.includes("application/json")) {
+    return `Error: unsupported content type "${contentType}"`;
+  }
+
+  const text = await response.text();
+  const maxLength = 20000;
+  if (text.length > maxLength) {
+    return text.slice(0, maxLength) + "\n\n[Truncated]";
+  }
+  return text;
+}
+
+export const fetchTool = {
+  type: "function" as const,
+  function: {
+    name: "web_fetch",
+    description:
+      "Fetch the contents of a web page by URL. Use this to read articles, documentation, or other web content when given a specific URL.",
+    parameters: {
+      type: "object",
+      properties: {
+        url: {
+          type: "string",
+          description: "The URL to fetch",
+        },
+      },
+      required: ["url"],
+    },
+  },
+};
+
+export async function handleFetchToolCall(argsJson: string): Promise<string> {
+  const args = JSON.parse(argsJson) as { url: string };
+  return await fetchPage(args.url);
+}

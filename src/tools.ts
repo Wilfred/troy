@@ -6,7 +6,12 @@ import {
 } from "node:fs";
 import { weatherTool, handleWeatherToolCall } from "./weather.js";
 import { calendarTools, handleCalendarToolCall } from "./calendar.js";
-import { searchTool, handleSearchToolCall } from "./search.js";
+import {
+  searchTool,
+  handleSearchToolCall,
+  fetchTool,
+  handleFetchToolCall,
+} from "./search.js";
 
 const noteTools = [
   {
@@ -56,7 +61,7 @@ export const tools = [
   ...noteTools,
   weatherTool,
   ...calendarTools,
-  ...(process.env.BRAVE_SEARCH_API_KEY ? [searchTool] : []),
+  ...(process.env.BRAVE_SEARCH_API_KEY ? [searchTool, fetchTool] : []),
 ];
 
 export async function handleToolCall(
@@ -92,6 +97,10 @@ export async function handleToolCall(
 
   if (name === "web_search") {
     return await handleSearchToolCall(argsJson);
+  }
+
+  if (name === "web_fetch") {
+    return await handleFetchToolCall(argsJson);
   }
 
   const calendarResult = await handleCalendarToolCall(name, argsJson);
