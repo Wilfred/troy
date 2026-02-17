@@ -264,25 +264,6 @@ async function runAction(opts: {
   console.log(`${content} ${suffix}`);
 }
 
-function showAction(rawId: string): void {
-  const numericId = Number(rawId.replace(/^C/i, ""));
-  if (!Number.isInteger(numericId) || numericId <= 0) {
-    console.error(`Error: invalid conversation ID "${rawId}"`);
-    process.exit(1);
-    return;
-  }
-
-  const logDir = join(homedir(), ".troy");
-  const logPath = join(logDir, "logs", `C${numericId}.log`);
-  if (!existsSync(logPath)) {
-    console.error(`Error: no conversation found with ID ${numericId}`);
-    process.exit(1);
-    return;
-  }
-
-  console.log(readFileSync(logPath, "utf-8"));
-}
-
 async function discordAction(opts: { dataDir?: string }): Promise<void> {
   const token = process.env.DISCORD_BOT_TOKEN;
   if (!token) {
@@ -315,12 +296,6 @@ Environment variables:
   OPENROUTER_MODEL         Model to use (default: anthropic/claude-opus-4.6)`,
     )
     .action(runAction);
-
-  program
-    .command("show")
-    .description("Look up a conversation by ID and print its log")
-    .argument("<id>", "conversation ID, e.g. C123 or 123")
-    .action(showAction);
 
   program
     .command("discord")
