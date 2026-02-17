@@ -1,3 +1,5 @@
+import { log } from "./logger.js";
+
 interface GeocodingResult {
   results?: Array<{
     latitude: number;
@@ -86,8 +88,12 @@ async function geocodeLocation(location: string): Promise<{
 }
 
 async function fetchWeather(location: string): Promise<string> {
+  log.info(`Fetching weather for: ${location}`);
   const geo = await geocodeLocation(location);
-  if (!geo) return `Could not find location: ${location}`;
+  if (!geo) {
+    log.warn(`Geocoding failed for: ${location}`);
+    return `Could not find location: ${location}`;
+  }
 
   const url =
     `https://api.open-meteo.com/v1/forecast?latitude=${geo.latitude}` +

@@ -10,6 +10,7 @@ import {
   nextChatId,
   writeConversationLog,
 } from "./conversationlog.js";
+import { log } from "./logger.js";
 
 type Message =
   | { role: "system"; content: string }
@@ -66,21 +67,27 @@ function buildSystemPrompt(dataDir: string, prompt?: string): string {
   );
 
   const rulesDir = join(dataDir, "rules");
+  let rulesCount = 0;
   if (existsSync(rulesDir)) {
     const mdFiles = readdirSync(rulesDir)
       .filter((f: string) => f.endsWith(".md"))
       .sort();
+    rulesCount = mdFiles.length;
     for (const file of mdFiles) {
       systemPrompt += "\n\n" + readFileSync(join(rulesDir, file), "utf-8");
     }
   }
 
+  let skillsCount = 0;
   if (prompt) {
     const skillsDir = join(dataDir, "skills");
-    for (const content of loadMatchingSkills(skillsDir, prompt)) {
+    const matchedSkills = loadMatchingSkills(skillsDir, prompt);
+    skillsCount = matchedSkills.length;
+    for (const content of matchedSkills) {
       systemPrompt += "\n\n" + content;
     }
   }
+  log.debug(`Loaded ${rulesCount} rule(s) and ${skillsCount} skill(s)`);
 
   const currentDate = new Date().toISOString().slice(0, 10);
   systemPrompt += `\n\nToday's date is ${currentDate}.`;
@@ -113,7 +120,7 @@ async function chat(
   const choice = completion.choices?.[0];
   const msg = choice?.message;
   if (!msg) {
-    console.error("Error: No response from model");
+    log.error("No response from model");
     process.exit(1);
   }
 
@@ -145,6 +152,7 @@ async function chat(
         name: toolCall.function.name,
         content: JSON.stringify(parsedArgs, null, 2),
       });
+      log.info(`Tool call: ${toolCall.function.name}`);
       const startTime = Date.now();
       try {
         const result = await handleToolCall(
@@ -153,6 +161,9 @@ async function chat(
           notesPath,
         );
         const duration_ms = Date.now() - startTime;
+        log.info(
+          `Tool completed: ${toolCall.function.name} (${duration_ms}ms)`,
+        );
         messages.push({
           role: "tool",
           toolCallId: toolCall.id,
@@ -167,6 +178,7 @@ async function chat(
       } catch (err) {
         const duration_ms = Date.now() - startTime;
         const errorMsg = `Error in ${toolCall.function.name}: ${err instanceof Error ? err.message : String(err)}`;
+        log.error(`Tool failed: ${toolCall.function.name} (${duration_ms}ms)`);
         messages.push({
           role: "tool",
           toolCallId: toolCall.id,
@@ -203,7 +215,7 @@ async function runAction(opts: {
 
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    console.error("Error: OPENROUTER_API_KEY environment variable is not set");
+    log.error("OPENROUTER_API_KEY environment variable is not set");
     process.exit(1);
   }
 
@@ -217,6 +229,7 @@ async function runAction(opts: {
   // anthropic/claude-sonnet-4.5: OK, not as good as opus, asked
   // follow-up questions.
   const model = process.env.OPENROUTER_MODEL || "anthropic/claude-opus-4.6";
+  log.info(`Starting run with model ${model}`);
 
   const client = new OpenRouter({ apiKey });
   const notesPath = join(dataDir, "rules", "NOTES.md");
@@ -245,7 +258,7 @@ async function runAction(opts: {
   );
 
   if (!content) {
-    console.error("Error: No response content from model");
+    log.error("No response content from model");
     process.exit(1);
   }
 
@@ -261,16 +274,18 @@ async function runAction(opts: {
     toolCount > 0
       ? `[C${chatId}, ${toolCount} tool ${toolCount === 1 ? "use" : "uses"}]`
       : `[C${chatId}]`;
+  log.info(`Completed C${chatId} with ${toolCount} tool use(s)`);
   console.log(`${content} ${suffix}`);
 }
 
 async function discordAction(opts: { dataDir?: string }): Promise<void> {
   const token = process.env.DISCORD_BOT_TOKEN;
   if (!token) {
-    console.error("Error: DISCORD_BOT_TOKEN environment variable is not set");
+    log.error("DISCORD_BOT_TOKEN environment variable is not set");
     process.exit(1);
   }
 
+  log.info("Starting Discord bot");
   const dataDir = getDataDir(opts.dataDir);
   await startDiscordBot(token, dataDir);
 }

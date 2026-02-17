@@ -15,6 +15,7 @@ import {
   nextChatId,
   writeConversationLog,
 } from "./conversationlog.js";
+import { log } from "./logger.js";
 
 type ChatMessage =
   | { role: "system"; content: string }
@@ -105,6 +106,7 @@ async function chatLoop(
         name: toolCall.function.name,
         content: JSON.stringify(parsedArgs, null, 2),
       });
+      log.info(`Tool call: ${toolCall.function.name}`);
       const startTime = Date.now();
       try {
         const result = await handleToolCall(
@@ -113,6 +115,9 @@ async function chatLoop(
           notesPath,
         );
         const duration_ms = Date.now() - startTime;
+        log.info(
+          `Tool completed: ${toolCall.function.name} (${duration_ms}ms)`,
+        );
         messages.push({
           role: "tool",
           toolCallId: toolCall.id,
@@ -127,6 +132,7 @@ async function chatLoop(
       } catch (err) {
         const duration_ms = Date.now() - startTime;
         const errorMsg = `Error in ${toolCall.function.name}: ${err instanceof Error ? err.message : String(err)}`;
+        log.error(`Tool failed: ${toolCall.function.name} (${duration_ms}ms)`);
         messages.push({
           role: "tool",
           toolCallId: toolCall.id,
@@ -188,6 +194,8 @@ async function handleDiscordMessage(
 
   if (!prompt) return;
 
+  log.info(`Discord message from user ${discordMsg.author.id}`);
+
   const systemPrompt = buildSystemPrompt(dataDir);
   const messages: ChatMessage[] = [
     { role: "system", content: systemPrompt },
@@ -212,7 +220,9 @@ async function handleDiscordMessage(
       conversationLog,
     );
   } catch (err) {
-    console.error("Error during chat:", err);
+    log.error(
+      `Error during chat: ${err instanceof Error ? err.message : String(err)}`,
+    );
     await discordMsg.reply(
       "Sorry, something went wrong processing your message.",
     );
@@ -250,7 +260,7 @@ export async function startDiscordBot(
 ): Promise<void> {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    console.error("Error: OPENROUTER_API_KEY environment variable is not set");
+    log.error("OPENROUTER_API_KEY environment variable is not set");
     process.exit(1);
   }
 
@@ -259,7 +269,7 @@ export async function startDiscordBot(
 
   const rawAllowlist = process.env.DISCORD_ALLOWLIST;
   if (!rawAllowlist) {
-    console.error("Error: DISCORD_ALLOWLIST environment variable is not set");
+    log.warn("DISCORD_ALLOWLIST environment variable is not set");
     process.exit(1);
   }
   const allowlist = new Set(
@@ -283,7 +293,7 @@ export async function startDiscordBot(
   });
 
   client.once(Events.ClientReady, (c) => {
-    console.log(`Logged in as ${c.user.tag}`);
+    log.info(`Logged in as ${c.user.tag}`);
   });
 
   client.on(Events.MessageCreate, async (msg) => {

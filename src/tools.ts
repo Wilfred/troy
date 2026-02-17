@@ -12,6 +12,7 @@ import {
   fetchTool,
   handleFetchToolCall,
 } from "./search.js";
+import { log } from "./logger.js";
 
 const noteTools = [
   {
@@ -69,6 +70,8 @@ export async function handleToolCall(
   argsJson: string,
   notesPath: string,
 ): Promise<string> {
+  log.debug(`Handling tool: ${name}`);
+
   if (name === "append_note") {
     const args = JSON.parse(argsJson) as { text: string };
     appendFileSync(notesPath, args.text + "\n", "utf-8");
@@ -108,5 +111,6 @@ export async function handleToolCall(
     return calendarResult;
   }
 
+  log.warn(`Unknown tool: ${name}`);
   return `Error: unknown tool "${name}"`;
 }
