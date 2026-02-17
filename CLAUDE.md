@@ -32,12 +32,15 @@ CI runs typecheck, lint, and format:check on Node 22.
 - `src/tools.ts` — Tool registry (combines all tools) and note tool handlers
 - `src/weather.ts` — Weather tool schema and Open-Meteo API integration
 - `src/calendar.ts` — Google Calendar tool schemas and handlers
-- `src/messages.ts` — Utilities for parsing and formatting chat message JSON files
+- `src/search.ts` — Web search tool using Brave Search API
+- `src/discord.ts` — Discord bot integration
+- `src/conversationlog.ts` — Conversation logging utilities
+- `src/logger.ts` — Structured logging via winston
 
 **CLI commands** (via Commander.js):
 
 - `troy run -p <prompt>` — Send a prompt to the model
-- `troy import -m <file>` — Import chat history and extract learnings into NOTES.md
+- `troy discord` — Run as a Discord bot
 
 ## Code Conventions
 
@@ -45,3 +48,4 @@ CI runs typecheck, lint, and format:check on Node 22.
 - TypeScript strict mode enabled
 - ESLint rule: nested named functions are forbidden — all functions must be top-level
 - No classes; functional style with explicit parameter passing
+- Prefer well-maintained npm packages over bespoke implementations
