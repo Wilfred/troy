@@ -54,9 +54,68 @@ function nextChatId(logDir: string): number {
   return ids.length > 0 ? Math.max(...ids) + 1 : 1;
 }
 
+function parseConversationLog(text: string): ConversationEntry[] {
+  const entries: ConversationEntry[] = [];
+  const headerRe =
+    /^(Prompt|Response|Tool Input|Tool Output)(?: name=(\S+?))?(?: duration=(\d+)ms)?:$/;
+  const lines = text.split("\n");
+  let i = 0;
+
+  while (i < lines.length) {
+    const match = headerRe.exec(lines[i]);
+    if (!match) {
+      i++;
+      continue;
+    }
+
+    const kind = match[1];
+    const name = match[2] ?? "";
+    const durationStr = match[3];
+    i++;
+
+    const contentLines: string[] = [];
+    while (i < lines.length) {
+      if (lines[i].startsWith("  ")) {
+        contentLines.push(lines[i].slice(2));
+        i++;
+      } else if (lines[i] === "") {
+        // Peek ahead: if next line is indented, it's a blank line within the block.
+        if (i + 1 < lines.length && lines[i + 1].startsWith("  ")) {
+          contentLines.push("");
+          i++;
+        } else {
+          break;
+        }
+      } else {
+        break;
+      }
+    }
+
+    const content = contentLines.join("\n");
+
+    if (kind === "Prompt") {
+      entries.push({ kind: "prompt", content });
+    } else if (kind === "Response") {
+      entries.push({ kind: "response", content });
+    } else if (kind === "Tool Input") {
+      entries.push({ kind: "tool_input", name, content });
+    } else if (kind === "Tool Output") {
+      entries.push({
+        kind: "tool_output",
+        name,
+        content,
+        duration_ms: durationStr ? Number(durationStr) : 0,
+      });
+    }
+  }
+
+  return entries;
+}
+
 export {
   ConversationEntry,
   formatConversationLog,
   nextChatId,
+  parseConversationLog,
   writeConversationLog,
 };

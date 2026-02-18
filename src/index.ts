@@ -10,6 +10,7 @@ import {
   nextChatId,
   writeConversationLog,
 } from "./conversationlog.js";
+import { readLogFile, replay } from "./replay.js";
 import { log } from "./logger.js";
 
 type Message =
@@ -290,6 +291,43 @@ async function discordAction(opts: { dataDir?: string }): Promise<void> {
   await startDiscordBot(token, dataDir);
 }
 
+async function replayAction(opts: {
+  file: string;
+  dataDir?: string;
+}): Promise<void> {
+  const dataDir = getDataDir(opts.dataDir);
+
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    log.error("OPENROUTER_API_KEY environment variable is not set");
+    process.exit(1);
+  }
+
+  const model = process.env.OPENROUTER_MODEL || "anthropic/claude-opus-4.6";
+  log.info(`Starting replay with model ${model}`);
+
+  const entries = readLogFile(opts.file);
+  if (entries.length === 0) {
+    log.error("No entries found in log file");
+    process.exit(1);
+  }
+
+  const promptEntry = entries.find((e) => e.kind === "prompt");
+  const prompt = promptEntry ? promptEntry.content : undefined;
+
+  const client = new OpenRouter({ apiKey });
+  const systemPrompt = buildSystemPrompt(dataDir, prompt);
+
+  const content = await replay(client, model, systemPrompt, entries);
+
+  if (!content) {
+    log.error("No response content from model during replay");
+    process.exit(1);
+  }
+
+  console.log(content);
+}
+
 async function main(): Promise<void> {
   const program = new Command();
 
@@ -311,6 +349,23 @@ Environment variables:
   OPENROUTER_MODEL         Model to use (default: anthropic/claude-opus-4.6)`,
     )
     .action(runAction);
+
+  program
+    .command("replay")
+    .description("Replay a conversation log, regenerating the model response")
+    .requiredOption("-f, --file <path>", "path to the conversation log file")
+    .option(
+      "-d, --data-dir <path>",
+      "data directory for .md files (default: ~/troy_data)",
+    )
+    .addHelpText(
+      "after",
+      `
+Environment variables:
+  OPENROUTER_API_KEY       API key for OpenRouter (required)
+  OPENROUTER_MODEL         Model to use (default: anthropic/claude-opus-4.6)`,
+    )
+    .action(replayAction);
 
   program
     .command("discord")
