@@ -14,8 +14,6 @@ import {
 } from "./search.js";
 import { log } from "./logger.js";
 
-export type ToolMode = "trusted" | "untrusted";
-
 const noteTools = [
   {
     type: "function" as const,
@@ -60,16 +58,22 @@ const noteTools = [
   },
 ];
 
-const switchToUntrustedTool = {
+const delegateToUntrustedTool = {
   type: "function" as const,
   function: {
-    name: "switch_to_untrusted",
+    name: "delegate_to_untrusted",
     description:
-      "Switch to untrusted tool mode. In this mode, only read-only tools are available and you cannot modify notes or calendar events. This transition is one-way and cannot be reversed.",
+      "Delegate a task to an untrusted subagent that has access to web search and web fetch tools. Construct a focused prompt describing exactly what you need. The subagent cannot see your conversation history or personal context. Its response will be shown directly to the user.",
     parameters: {
       type: "object",
-      properties: {},
-      required: [],
+      properties: {
+        prompt: {
+          type: "string",
+          description:
+            "A self-contained prompt for the subagent. Include all necessary context since the subagent has no access to the conversation history.",
+        },
+      },
+      required: ["prompt"],
     },
   },
 };
@@ -82,16 +86,10 @@ export const trustedTools = [
   ...noteTools,
   weatherTool,
   ...calendarTools,
-  switchToUntrustedTool,
+  delegateToUntrustedTool,
 ];
 
 export const untrustedTools = [weatherTool, ...searchTools];
-
-export function toolsForMode(
-  mode: ToolMode,
-): (typeof trustedTools | typeof untrustedTools)[number][] {
-  return mode === "trusted" ? trustedTools : untrustedTools;
-}
 
 export async function handleToolCall(
   name: string,
@@ -99,11 +97,6 @@ export async function handleToolCall(
   notesPath: string,
 ): Promise<string> {
   log.debug(`Handling tool: ${name}`);
-
-  if (name === "switch_to_untrusted") {
-    log.info("Switching to untrusted tool mode");
-    return "Switched to untrusted tool mode. Only read-only tools are now available.";
-  }
 
   if (name === "append_note") {
     const args = JSON.parse(argsJson) as { text: string };
