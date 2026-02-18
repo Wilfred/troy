@@ -74,10 +74,6 @@ const switchToUntrustedTool = {
   },
 };
 
-const readOnlyCalendarTools = calendarTools.filter(
-  (t) => t.function.name === "list_calendar_events",
-);
-
 const searchTools = process.env.BRAVE_SEARCH_API_KEY
   ? [searchTool, fetchTool]
   : [];
@@ -86,17 +82,14 @@ export const trustedTools = [
   ...noteTools,
   weatherTool,
   ...calendarTools,
-  ...searchTools,
   switchToUntrustedTool,
 ];
 
-export const untrustedTools = [
-  weatherTool,
-  ...readOnlyCalendarTools,
-  ...searchTools,
-];
+export const untrustedTools = [weatherTool, ...searchTools];
 
-export function toolsForMode(mode: ToolMode): typeof trustedTools {
+export function toolsForMode(
+  mode: ToolMode,
+): (typeof trustedTools | typeof untrustedTools)[number][] {
   return mode === "trusted" ? trustedTools : untrustedTools;
 }
 
