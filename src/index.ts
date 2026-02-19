@@ -257,7 +257,7 @@ async function chat(
         name: toolCall.function.name,
         content: JSON.stringify(parsedArgs, null, 2),
       });
-      log.info(`Tool call: ${toolCall.function.name}`);
+      log.info(`Trusted tool call: ${toolCall.function.name}`);
 
       if (toolCall.function.name === "delegate_to_untrusted") {
         const args = parsedArgs as { prompt: string };
@@ -279,7 +279,7 @@ async function chat(
         );
         const duration_ms = Date.now() - startTime;
         log.info(
-          `Tool completed: ${toolCall.function.name} (${duration_ms}ms)`,
+          `Trusted tool completed: ${toolCall.function.name} (${duration_ms}ms)`,
         );
         messages.push({
           role: "tool",
@@ -295,7 +295,9 @@ async function chat(
       } catch (err) {
         const duration_ms = Date.now() - startTime;
         const errorMsg = `Error in ${toolCall.function.name}: ${err instanceof Error ? err.message : String(err)}`;
-        log.error(`Tool failed: ${toolCall.function.name} (${duration_ms}ms)`);
+        log.error(
+          `Trusted tool failed: ${toolCall.function.name} (${duration_ms}ms)`,
+        );
         messages.push({
           role: "tool",
           toolCallId: toolCall.id,
@@ -350,7 +352,7 @@ async function runAction(opts: {
   // anthropic/claude-sonnet-4.5: OK, not as good as opus, asked
   // follow-up questions.
   const model = process.env.OPENROUTER_MODEL || "anthropic/claude-opus-4.6";
-  log.info(`Starting run with model ${model}`);
+  log.info(`Starting run with model ${model} (trusted mode)`);
 
   const client = new OpenRouter({ apiKey });
   const notesPath = join(dataDir, "rules", "NOTES.md");
@@ -368,6 +370,7 @@ async function runAction(opts: {
   const conversationLog: ConversationEntry[] = [
     { kind: "prompt", content: opts.prompt },
   ];
+  log.info("Starting trusted agent");
   const content = await chat(
     client,
     model,
