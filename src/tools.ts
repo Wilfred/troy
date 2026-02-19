@@ -58,12 +58,38 @@ const noteTools = [
   },
 ];
 
-export const tools = [
+const delegateToUntrustedTool = {
+  type: "function" as const,
+  function: {
+    name: "delegate_to_untrusted",
+    description:
+      "Delegate a task to an untrusted subagent that has access to web search and web fetch tools. Construct a focused prompt describing exactly what you need. The subagent cannot see your conversation history or personal context. Its response will be shown directly to the user.",
+    parameters: {
+      type: "object",
+      properties: {
+        prompt: {
+          type: "string",
+          description:
+            "A self-contained prompt for the subagent. Include all necessary context since the subagent has no access to the conversation history.",
+        },
+      },
+      required: ["prompt"],
+    },
+  },
+};
+
+const searchTools = process.env.BRAVE_SEARCH_API_KEY
+  ? [searchTool, fetchTool]
+  : [];
+
+export const trustedTools = [
   ...noteTools,
   weatherTool,
   ...calendarTools,
-  ...(process.env.BRAVE_SEARCH_API_KEY ? [searchTool, fetchTool] : []),
+  delegateToUntrustedTool,
 ];
+
+export const untrustedTools = [weatherTool, ...searchTools];
 
 export async function handleToolCall(
   name: string,

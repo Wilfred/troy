@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { Command } from "commander";
 import { OpenRouter } from "@openrouter/sdk";
-import { tools, handleToolCall } from "./tools.js";
+import { trustedTools, untrustedTools, handleToolCall } from "./tools.js";
 import { startDiscordBot } from "./discord.js";
 import {
   ConversationEntry,
@@ -100,6 +100,110 @@ function buildSystemPrompt(dataDir: string, prompt?: string): string {
   return systemPrompt;
 }
 
+async function untrustedChat(
+  client: OpenRouter,
+  model: string,
+  messages: Message[],
+  conversationLog: ConversationEntry[],
+): Promise<string> {
+  const completion = await client.chat.send({
+    chatGenerationParams: {
+      model,
+      messages,
+      tools: untrustedTools,
+    },
+  });
+
+  const choice = completion.choices?.[0];
+  const msg = choice?.message;
+  if (!msg) {
+    log.error("No response from untrusted subagent");
+    return "Error: no response from subagent.";
+  }
+
+  if (msg.toolCalls && msg.toolCalls.length > 0) {
+    messages.push({
+      role: "assistant",
+      content: msg.content as string | null | undefined,
+      toolCalls: msg.toolCalls,
+    });
+
+    for (const toolCall of msg.toolCalls) {
+      conversationLog.push({
+        kind: "tool_input",
+        name: toolCall.function.name,
+        content: toolCall.function.arguments,
+      });
+      log.info(`Untrusted tool call: ${toolCall.function.name}`);
+      const startTime = Date.now();
+      try {
+        const result = await handleToolCall(
+          toolCall.function.name,
+          toolCall.function.arguments,
+          "",
+        );
+        const duration_ms = Date.now() - startTime;
+        log.info(
+          `Untrusted tool completed: ${toolCall.function.name} (${duration_ms}ms)`,
+        );
+        messages.push({
+          role: "tool",
+          toolCallId: toolCall.id,
+          content: result,
+        });
+        conversationLog.push({
+          kind: "tool_output",
+          name: toolCall.function.name,
+          content: result,
+          duration_ms,
+        });
+      } catch (err) {
+        const duration_ms = Date.now() - startTime;
+        const errorMsg = `Error in ${toolCall.function.name}: ${err instanceof Error ? err.message : String(err)}`;
+        log.error(
+          `Untrusted tool failed: ${toolCall.function.name} (${duration_ms}ms)`,
+        );
+        messages.push({
+          role: "tool",
+          toolCallId: toolCall.id,
+          content: errorMsg,
+        });
+        conversationLog.push({
+          kind: "tool_output",
+          name: toolCall.function.name,
+          content: errorMsg,
+          duration_ms,
+        });
+      }
+    }
+
+    return untrustedChat(client, model, messages, conversationLog);
+  }
+
+  return (msg.content as string) || "";
+}
+
+async function runUntrustedSubagent(
+  client: OpenRouter,
+  model: string,
+  prompt: string,
+  conversationLog: ConversationEntry[],
+): Promise<string> {
+  log.info("Starting untrusted subagent");
+  conversationLog.push({ kind: "response", content: `[subagent] ${prompt}` });
+
+  const messages: Message[] = [
+    {
+      role: "system",
+      content:
+        "You are a helpful assistant. Answer the user's question using the available tools. Be concise.",
+    },
+    { role: "user", content: prompt },
+  ];
+
+  return untrustedChat(client, model, messages, conversationLog);
+}
+
 async function chat(
   client: OpenRouter,
   model: string,
@@ -113,7 +217,7 @@ async function chat(
     chatGenerationParams: {
       model,
       messages,
-      tools,
+      tools: trustedTools,
     },
   });
 
@@ -138,6 +242,7 @@ async function chat(
       toolCalls: msg.toolCalls,
     });
 
+    let delegateResult: string | null = null;
     for (const toolCall of msg.toolCalls) {
       let parsedArgs: unknown;
       try {
@@ -153,6 +258,18 @@ async function chat(
         content: JSON.stringify(parsedArgs, null, 2),
       });
       log.info(`Tool call: ${toolCall.function.name}`);
+
+      if (toolCall.function.name === "delegate_to_untrusted") {
+        const args = parsedArgs as { prompt: string };
+        delegateResult = await runUntrustedSubagent(
+          client,
+          model,
+          args.prompt,
+          conversationLog,
+        );
+        continue;
+      }
+
       const startTime = Date.now();
       try {
         const result = await handleToolCall(
@@ -191,6 +308,10 @@ async function chat(
           duration_ms,
         });
       }
+    }
+
+    if (delegateResult !== null) {
+      return delegateResult;
     }
 
     return chat(
