@@ -1,6 +1,8 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { createInterface } from "node:readline/promises";
+import { stdin as processStdin, stdout as processStdout } from "node:process";
 import { Command } from "commander";
 import { OpenRouter } from "@openrouter/sdk";
 import { trustedTools, untrustedTools, handleToolCall } from "./tools.js";
@@ -330,10 +332,99 @@ async function chat(
   return (msg.content as string) || "";
 }
 
+async function replAction(opts: { dataDir?: string }): Promise<void> {
+  const dataDir = getDataDir(opts.dataDir);
+
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    log.error("OPENROUTER_API_KEY environment variable is not set");
+    process.exit(1);
+  }
+
+  const model = process.env.OPENROUTER_MODEL || "anthropic/claude-opus-4.6";
+  log.info(`Starting REPL with model ${model}`);
+
+  const client = new OpenRouter({ apiKey });
+  const notesPath = join(dataDir, "rules", "NOTES.md");
+
+  const messages: Message[] = [
+    {
+      role: "system",
+      content: buildSystemPrompt(dataDir),
+    },
+  ];
+
+  const toolsUsed: string[] = [];
+  const toolInputs: Array<{ name: string; args: unknown }> = [];
+  const conversationLog: ConversationEntry[] = [];
+
+  const rl = createInterface({ input: processStdin, output: processStdout });
+
+  processStdout.write('Troy REPL (Ctrl+D or "exit" to quit)\n\n');
+
+  while (true) {
+    let userInput: string;
+    try {
+      userInput = await rl.question("> ");
+    } catch {
+      break;
+    }
+
+    const trimmed = userInput.trim();
+    if (trimmed === "exit" || trimmed === "quit") break;
+    if (!trimmed) continue;
+
+    conversationLog.push({ kind: "prompt", content: trimmed });
+    messages.push({ role: "user", content: trimmed });
+
+    let content: string;
+    try {
+      content = await chat(
+        client,
+        model,
+        messages,
+        notesPath,
+        toolsUsed,
+        toolInputs,
+        conversationLog,
+      );
+    } catch (err) {
+      log.error(`Error: ${err instanceof Error ? err.message : String(err)}`);
+      messages.pop();
+      conversationLog.pop();
+      continue;
+    }
+
+    if (!content) {
+      log.error("No response content from model");
+      continue;
+    }
+
+    conversationLog.push({ kind: "response", content });
+    messages.push({ role: "assistant", content });
+
+    processStdout.write(`\n${content}\n\n`);
+  }
+
+  rl.close();
+
+  if (conversationLog.length > 0) {
+    const logDir = join(homedir(), ".troy");
+    mkdirSync(logDir, { recursive: true });
+    const chatId = nextChatId(logDir);
+    writeConversationLog(logDir, chatId, conversationLog);
+    log.info(`REPL session saved as C${chatId}`);
+  }
+}
+
 async function runAction(opts: {
-  prompt: string;
+  prompt?: string;
   dataDir?: string;
 }): Promise<void> {
+  if (!opts.prompt) {
+    return replAction(opts);
+  }
+
   const dataDir = getDataDir(opts.dataDir);
 
   const apiKey = process.env.OPENROUTER_API_KEY;
@@ -421,8 +512,10 @@ async function main(): Promise<void> {
 
   program
     .command("run")
-    .description("Send a prompt to the model")
-    .requiredOption("-p, --prompt <string>", "the prompt to send to the model")
+    .description(
+      "Send a prompt to the model, or start a REPL if no prompt is given",
+    )
+    .option("-p, --prompt <string>", "the prompt to send to the model")
     .option(
       "-d, --data-dir <path>",
       "data directory for .md files (default: ~/troy_data)",
