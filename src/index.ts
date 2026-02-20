@@ -341,7 +341,7 @@ async function replAction(opts: { dataDir?: string }): Promise<void> {
     process.exit(1);
   }
 
-  const model = process.env.OPENROUTER_MODEL || "anthropic/claude-opus-4.6";
+  const model = process.env.OPENROUTER_MODEL || "anthropic/claude-sonnet-4.6";
   log.info(`Starting REPL with model ${model}`);
 
   const client = new OpenRouter({ apiKey });
