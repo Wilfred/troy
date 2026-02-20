@@ -1,3 +1,4 @@
+import { NodeHtmlMarkdown } from "node-html-markdown";
 import { log } from "./logger.js";
 
 interface BraveSearchResult {
@@ -90,7 +91,10 @@ async function fetchPage(url: string): Promise<string> {
     return `Error: unsupported content type "${contentType}"`;
   }
 
-  const text = await response.text();
+  const raw = await response.text();
+  const text = contentType.includes("text/html")
+    ? NodeHtmlMarkdown.translate(raw)
+    : raw;
   const maxLength = 20000;
   if (text.length > maxLength) {
     return text.slice(0, maxLength) + "\n\n[Truncated]";
