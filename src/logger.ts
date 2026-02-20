@@ -9,7 +9,7 @@ export const log = createLogger({
     format.colorize(),
     format.printf(
       (info) =>
-        `${info.timestamp as string} [${(info.level as string).toUpperCase()}] ${info.message as string}`,
+        `${info.timestamp as string} [${info.level as string}] ${info.message as string}`,
     ),
   ),
   transports: [
