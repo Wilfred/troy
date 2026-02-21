@@ -126,6 +126,8 @@ async function fetchWeather(location: string): Promise<string> {
   return result;
 }
 
+export { describeWeatherCode };
+
 export const weatherTool = {
   type: "function" as const,
   function: {

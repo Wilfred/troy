@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "tsc && node --test dist/messages.test.js dist/conversationlog.test.js"
+    "test": "tsc && node --test dist/messages.test.js dist/conversationlog.test.js dist/weather.test.js"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
