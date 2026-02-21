@@ -1,11 +1,12 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, rmSync, mkdirSync } from "node:fs";
+import { readFileSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
   ConversationEntry,
   formatConversationLog,
+  nextChatId,
   writeConversationLog,
 } from "./conversationlog.js";
 
@@ -115,5 +116,52 @@ describe("conversationlog", () => {
     ];
     const result = formatConversationLog(entries);
     assert.equal(result, "Prompt:\n  \n\nResponse:\n  \n");
+  });
+});
+
+describe("nextChatId", () => {
+  let dir: string;
+
+  beforeEach(() => {
+    dir = tmpDir();
+  });
+
+  afterEach(() => {
+    try {
+      rmSync(dir, { recursive: true });
+    } catch {
+      // ignore
+    }
+  });
+
+  it("returns 1 when the logs directory does not exist", () => {
+    assert.equal(nextChatId(dir), 1);
+  });
+
+  it("returns 1 when the logs directory is empty", () => {
+    mkdirSync(join(dir, "logs"), { recursive: true });
+    assert.equal(nextChatId(dir), 1);
+  });
+
+  it("returns 1 when logs directory contains no matching files", () => {
+    mkdirSync(join(dir, "logs"), { recursive: true });
+    writeFileSync(join(dir, "logs", "notes.txt"), "", "utf-8");
+    assert.equal(nextChatId(dir), 1);
+  });
+
+  it("returns max id + 1 when log files exist", () => {
+    const logsDir = join(dir, "logs");
+    mkdirSync(logsDir, { recursive: true });
+    writeFileSync(join(logsDir, "C1.log"), "", "utf-8");
+    writeFileSync(join(logsDir, "C3.log"), "", "utf-8");
+    writeFileSync(join(logsDir, "C5.log"), "", "utf-8");
+    assert.equal(nextChatId(dir), 6);
+  });
+
+  it("increments correctly after writeConversationLog", () => {
+    const entries: ConversationEntry[] = [{ kind: "prompt", content: "hello" }];
+    writeConversationLog(dir, 1, entries);
+    writeConversationLog(dir, 2, entries);
+    assert.equal(nextChatId(dir), 3);
   });
 });
