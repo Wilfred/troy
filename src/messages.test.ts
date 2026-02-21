@@ -21,8 +21,8 @@ function tmpDir(): string {
 }
 
 describe("handleToolCall – note tools", () => {
-  let dir: string;
-  let notesPath: string;
+  let dir = "";
+  let notesPath = "";
 
   beforeEach(() => {
     dir = tmpDir();
