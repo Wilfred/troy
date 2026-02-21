@@ -246,7 +246,7 @@ async function chat(
 
     let delegateResult: string | null = null;
     for (const toolCall of msg.toolCalls) {
-      let parsedArgs: unknown;
+      let parsedArgs: unknown = undefined;
       try {
         parsedArgs = JSON.parse(toolCall.function.arguments) as unknown;
       } catch {
@@ -363,7 +363,7 @@ async function replAction(opts: { dataDir?: string }): Promise<void> {
   processStdout.write('Troy REPL (Ctrl+D or "exit" to quit)\n\n');
 
   while (true) {
-    let userInput: string;
+    let userInput = "";
     try {
       userInput = await rl.question("> ");
     } catch {
@@ -377,7 +377,7 @@ async function replAction(opts: { dataDir?: string }): Promise<void> {
     conversationLog.push({ kind: "prompt", content: trimmed });
     messages.push({ role: "user", content: trimmed });
 
-    let content: string;
+    let content = "";
     try {
       content = await chat(
         client,

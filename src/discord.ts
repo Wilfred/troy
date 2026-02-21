@@ -197,7 +197,7 @@ async function chatLoop(
 
     let delegateResult: string | null = null;
     for (const toolCall of msg.toolCalls) {
-      let parsedArgs: unknown;
+      let parsedArgs: unknown = undefined;
       try {
         parsedArgs = JSON.parse(toolCall.function.arguments) as unknown;
       } catch {
@@ -328,7 +328,7 @@ async function handleDiscordMessage(
     { kind: "prompt", content: prompt },
   ];
 
-  let content: string;
+  let content = "";
   try {
     content = await chatLoop(
       openrouter,

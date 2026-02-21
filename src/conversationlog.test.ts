@@ -20,7 +20,7 @@ function tmpDir(): string {
 }
 
 describe("conversationlog", () => {
-  let dir: string;
+  let dir = "";
 
   beforeEach(() => {
     dir = tmpDir();
@@ -120,7 +120,7 @@ describe("conversationlog", () => {
 });
 
 describe("nextChatId", () => {
-  let dir: string;
+  let dir = "";
 
   beforeEach(() => {
     dir = tmpDir();

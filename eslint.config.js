@@ -8,6 +8,7 @@ export default tseslint.config(
   {
     rules: {
       "@typescript-eslint/explicit-function-return-type": "error",
+      "init-declarations": ["error", "always"],
       "no-restricted-syntax": [
         "error",
         {
