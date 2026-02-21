@@ -14,8 +14,12 @@ output trusted content (e.g. my personal calendar).
 
 ## Trifecta: Subagent For Untrusted Inputs
 
-Eventually I'd like a second set of untrusted tools that can be used
-by an isolated subagent.
+Untrusted tools (web search, web fetch) are only available to an
+isolated subagent. The trusted bot delegates to it via a
+`delegate_to_untrusted` tool, and the subagent runs in a fresh
+context with no access to conversation history or personal data.
+Its response is returned directly to the user — never fed back
+into the trusted bot's messages.
 
 ```
 User:
@@ -35,8 +39,8 @@ Trusted bot:
       How about the Eiffel tower?
 ```
 
-Crucially, this does not allow any untrusted tool outputs to be
-consumed by the trusted bot.
+This ensures untrusted tool outputs are never consumed by the
+trusted bot.
 
 ## Further Reading
 
