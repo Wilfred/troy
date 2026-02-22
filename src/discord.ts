@@ -61,6 +61,7 @@ async function untrustedChatLoop(
   model: string,
   messages: ChatMessage[],
   conversationLog: ConversationEntry[],
+  toolsUsed: string[],
 ): Promise<string> {
   const completion = await client.chat.send({
     chatGenerationParams: {
@@ -84,6 +85,7 @@ async function untrustedChatLoop(
     });
 
     for (const toolCall of msg.toolCalls) {
+      toolsUsed.push(toolCall.function.name);
       conversationLog.push({
         kind: "tool_input",
         name: toolCall.function.name,
@@ -132,7 +134,13 @@ async function untrustedChatLoop(
       }
     }
 
-    return untrustedChatLoop(client, model, messages, conversationLog);
+    return untrustedChatLoop(
+      client,
+      model,
+      messages,
+      conversationLog,
+      toolsUsed,
+    );
   }
 
   return (msg.content as string) || "";
@@ -143,6 +151,7 @@ async function runUntrustedSubagent(
   model: string,
   prompt: string,
   conversationLog: ConversationEntry[],
+  toolsUsed: string[],
 ): Promise<string> {
   log.info("Starting untrusted subagent");
   conversationLog.push({ kind: "response", content: `[subagent] ${prompt}` });
@@ -156,7 +165,7 @@ async function runUntrustedSubagent(
     { role: "user", content: prompt },
   ];
 
-  return untrustedChatLoop(client, model, messages, conversationLog);
+  return untrustedChatLoop(client, model, messages, conversationLog, toolsUsed);
 }
 
 async function chatLoop(
@@ -219,6 +228,7 @@ async function chatLoop(
           model,
           args.prompt,
           conversationLog,
+          toolsUsed,
         );
         continue;
       }
