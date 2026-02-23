@@ -91,8 +91,11 @@ function buildSystemPrompt(dataDir: string, prompt?: string): string {
   }
   log.debug(`Loaded ${rulesCount} rule(s) and ${skillsCount} skill(s)`);
 
-  const currentDate = new Date().toISOString().slice(0, 10);
-  systemPrompt += `\n\nToday's date is ${currentDate}.`;
+  const now = new Date();
+  const weekday = now.toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" });
+  const currentDate = now.toISOString().slice(0, 10);
+  const currentTime = now.toISOString().slice(11, 16);
+  systemPrompt += `\n\nThe current date and time is ${weekday}, ${currentDate} ${currentTime} UTC.`;
 
   const currentUser = process.env.USER;
   if (currentUser) {
