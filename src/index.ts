@@ -13,6 +13,7 @@ import {
   writeConversationLog,
 } from "./conversationlog.js";
 import { log } from "./logger.js";
+import { weekContext } from "./dates.js";
 
 type Message =
   | { role: "system"; content: string }
@@ -91,8 +92,7 @@ function buildSystemPrompt(dataDir: string, prompt?: string): string {
   }
   log.debug(`Loaded ${rulesCount} rule(s) and ${skillsCount} skill(s)`);
 
-  const currentDate = new Date().toISOString().slice(0, 10);
-  systemPrompt += `\n\nToday's date is ${currentDate}.`;
+  systemPrompt += `\n\n${weekContext()}`;
 
   const currentUser = process.env.USER;
   if (currentUser) {
