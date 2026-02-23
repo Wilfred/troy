@@ -34,6 +34,45 @@ function isDateOnly(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
+export function formatDateWithDay(dateStr: string): string {
+  if (isDateOnly(dateStr)) {
+    // Construct a local date from components to avoid UTC-to-local shifting.
+    const [year, month, day] = dateStr.split("-").map(Number);
+    const d = new Date(year, month - 1, day);
+    const weekday = new Intl.DateTimeFormat("en-GB", {
+      weekday: "long",
+    }).format(d);
+    return `${weekday}, ${dateStr}`;
+  }
+
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Europe/London",
+      weekday: "long",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    })
+      .formatToParts(d)
+      .map(({ type, value }) => [type, value]),
+  );
+
+  const isoDate = `${parts.year}-${parts.month}-${parts.day}`;
+  const dayPeriod = (parts.dayPeriod ?? "").toLowerCase();
+  const time =
+    parts.minute === "00"
+      ? `${parts.hour}${dayPeriod}`
+      : `${parts.hour}:${parts.minute}${dayPeriod}`;
+
+  return `${parts.weekday}, ${isoDate} at ${time}`;
+}
+
 function makeEventTime(
   value: string,
   timezone?: string,
@@ -78,8 +117,8 @@ async function listCalendarEvents(args: {
     const end = event.end?.dateTime ?? event.end?.date ?? "Unknown";
     result += `ID: ${event.id}\n`;
     result += `Title: ${event.summary ?? "(no title)"}\n`;
-    result += `Start: ${start}\n`;
-    result += `End: ${end}\n`;
+    result += `Start: ${formatDateWithDay(start)}\n`;
+    result += `End: ${formatDateWithDay(end)}\n`;
     if (event.location) result += `Location: ${event.location}\n`;
     if (event.description) result += `Description: ${event.description}\n`;
     result += "\n";
