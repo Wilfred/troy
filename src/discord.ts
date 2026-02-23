@@ -16,6 +16,7 @@ import {
   writeConversationLog,
 } from "./conversationlog.js";
 import { log } from "./logger.js";
+import { weekContext } from "./dates.js";
 
 type ChatMessage =
   | { role: "system"; content: string }
@@ -307,8 +308,7 @@ function buildSystemPrompt(dataDir: string): string {
     }
   }
 
-  const currentDate = new Date().toISOString().slice(0, 10);
-  systemPrompt += `\n\nToday's date is ${currentDate}.`;
+  systemPrompt += `\n\n${weekContext()}`;
 
   return systemPrompt;
 }
