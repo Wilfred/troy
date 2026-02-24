@@ -13,4 +13,6 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 COPY --from=build /app/dist/ dist/
+COPY SYSTEM.md ./
+ENV TROY_DATA_DIR=/data
 ENTRYPOINT ["node", "dist/index.js"]
