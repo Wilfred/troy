@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import {
@@ -16,7 +16,7 @@ import {
   writeConversationLog,
 } from "./conversationlog.js";
 import { log } from "./logger.js";
-import { weekContext } from "./dates.js";
+import { buildSystemPrompt } from "./systemprompt.js";
 
 type ChatMessage =
   | { role: "system"; content: string }
@@ -290,27 +290,6 @@ async function chatLoop(
   }
 
   return (msg.content as string) || "";
-}
-
-function buildSystemPrompt(dataDir: string): string {
-  let systemPrompt = readFileSync(
-    new URL("../SYSTEM.md", import.meta.url),
-    "utf-8",
-  );
-
-  const rulesDir = join(dataDir, "rules");
-  if (existsSync(rulesDir)) {
-    const mdFiles = readdirSync(rulesDir)
-      .filter((f: string) => f.endsWith(".md"))
-      .sort();
-    for (const file of mdFiles) {
-      systemPrompt += "\n\n" + readFileSync(join(rulesDir, file), "utf-8");
-    }
-  }
-
-  systemPrompt += `\n\n${weekContext()}`;
-
-  return systemPrompt;
 }
 
 async function handleDiscordMessage(
