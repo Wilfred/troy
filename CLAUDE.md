@@ -6,10 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Troy is an agentic helper bot CLI powered by OpenRouter. It provides persistent context and personal memory through markdown files stored in a data directory (`~/troy_data/` by default).
 
+The data directory path is resolved in this order: `-d` CLI flag > `TROY_DATA_DIR` env var > `~/troy_data`. Set `TROY_DATA_DIR` to a cloud-synced folder (e.g. `~/Dropbox/troy_data`) to share rules and skills across machines.
+
 The data directory is split into two subdirectories:
 
-- `~/troy_data/rules/` — always loaded into the system prompt; `NOTES.md` lives here
-- `~/troy_data/skills/` — each `.md` file is loaded only when the initial sentence of the prompt matches the skill name (keyword match on the filename)
+- `rules/` — always loaded into the system prompt; `NOTES.md` lives here
+- `skills/` — each `.md` file is loaded only when the initial sentence of the prompt matches the skill name (keyword match on the filename)
 
 ## Commands
 

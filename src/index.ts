@@ -29,7 +29,8 @@ type Message =
   | { role: "tool"; content: string; toolCallId: string };
 
 function getDataDir(dataDir?: string): string {
-  const dir = dataDir || join(homedir(), "troy_data");
+  const dir =
+    dataDir || process.env.TROY_DATA_DIR || join(homedir(), "troy_data");
   mkdirSync(join(dir, "rules"), { recursive: true });
   mkdirSync(join(dir, "skills"), { recursive: true });
   return dir;
@@ -522,14 +523,15 @@ async function main(): Promise<void> {
     .option("-p, --prompt <string>", "the prompt to send to the model")
     .option(
       "-d, --data-dir <path>",
-      "data directory for .md files (default: ~/troy_data)",
+      "data directory for .md files (default: $TROY_DATA_DIR or ~/troy_data)",
     )
     .addHelpText(
       "after",
       `
 Environment variables:
   OPENROUTER_API_KEY       API key for OpenRouter (required)
-  OPENROUTER_MODEL         Model to use (default: anthropic/claude-opus-4.6)`,
+  OPENROUTER_MODEL         Model to use (default: anthropic/claude-opus-4.6)
+  TROY_DATA_DIR            Data directory for rules/skills (e.g. ~/Dropbox/troy_data)`,
     )
     .action(runAction);
 
@@ -538,7 +540,7 @@ Environment variables:
     .description("Run Troy as a Discord bot")
     .option(
       "-d, --data-dir <path>",
-      "data directory for .md files (default: ~/troy_data)",
+      "data directory for .md files (default: $TROY_DATA_DIR or ~/troy_data)",
     )
     .addHelpText(
       "after",
@@ -547,7 +549,8 @@ Environment variables:
   DISCORD_BOT_TOKEN        Discord bot token (required)
   OPENROUTER_API_KEY       API key for OpenRouter (required)
   OPENROUTER_MODEL         Model to use (default: anthropic/claude-opus-4.6)
-  DISCORD_ALLOWLIST        Comma-separated Discord user IDs allowed to use the bot (required)`,
+  DISCORD_ALLOWLIST        Comma-separated Discord user IDs allowed to use the bot (required)
+  TROY_DATA_DIR            Data directory for rules/skills (e.g. ~/Dropbox/troy_data)`,
     )
     .action(discordAction);
 
