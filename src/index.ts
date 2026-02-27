@@ -12,6 +12,7 @@ import {
   nextChatId,
   writeConversationLog,
 } from "./conversationlog.js";
+import { loadHistory, addExchange } from "./history.js";
 import { log } from "./logger.js";
 import { buildSystemPrompt } from "./systemprompt.js";
 
@@ -285,12 +286,20 @@ async function replAction(opts: { dataDir?: string }): Promise<void> {
   const client = new OpenRouter({ apiKey });
   const notesPath = join(dataDir, "rules", "NOTES.md");
 
+  const logDir = join(homedir(), ".troy");
+  mkdirSync(logDir, { recursive: true });
+  const history = loadHistory(logDir);
+
   const messages: Message[] = [
     {
       role: "system",
       content: buildSystemPrompt(dataDir),
     },
   ];
+  for (const exchange of history) {
+    messages.push({ role: "user", content: exchange.user });
+    messages.push({ role: "assistant", content: exchange.assistant });
+  }
 
   const toolsUsed: string[] = [];
   const toolInputs: Array<{ name: string; args: unknown }> = [];
@@ -340,6 +349,7 @@ async function replAction(opts: { dataDir?: string }): Promise<void> {
 
     conversationLog.push({ kind: "response", content });
     messages.push({ role: "assistant", content });
+    addExchange(logDir, trimmed, content);
 
     processStdout.write(`\n${content}\n\n`);
   }
@@ -347,8 +357,6 @@ async function replAction(opts: { dataDir?: string }): Promise<void> {
   rl.close();
 
   if (conversationLog.length > 0) {
-    const logDir = join(homedir(), ".troy");
-    mkdirSync(logDir, { recursive: true });
     const chatId = nextChatId(logDir);
     writeConversationLog(logDir, chatId, conversationLog);
     log.info(`REPL session saved as C${chatId}`);
@@ -386,13 +394,21 @@ async function runAction(opts: {
   const client = new OpenRouter({ apiKey });
   const notesPath = join(dataDir, "rules", "NOTES.md");
 
+  const logDir = join(homedir(), ".troy");
+  mkdirSync(logDir, { recursive: true });
+  const history = loadHistory(logDir);
+
   const messages: Message[] = [
     {
       role: "system",
       content: buildSystemPrompt(dataDir, opts.prompt),
     },
-    { role: "user", content: opts.prompt },
   ];
+  for (const exchange of history) {
+    messages.push({ role: "user", content: exchange.user });
+    messages.push({ role: "assistant", content: exchange.assistant });
+  }
+  messages.push({ role: "user", content: opts.prompt });
 
   const toolsUsed: string[] = [];
   const toolInputs: Array<{ name: string; args: unknown }> = [];
@@ -417,8 +433,8 @@ async function runAction(opts: {
 
   conversationLog.push({ kind: "response", content });
 
-  const logDir = join(homedir(), ".troy");
-  mkdirSync(logDir, { recursive: true });
+  addExchange(logDir, opts.prompt, content);
+
   const chatId = nextChatId(logDir);
   writeConversationLog(logDir, chatId, conversationLog);
 

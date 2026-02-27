@@ -15,6 +15,7 @@ import {
   nextChatId,
   writeConversationLog,
 } from "./conversationlog.js";
+import type { Exchange } from "./history.js";
 import { log } from "./logger.js";
 import { buildSystemPrompt } from "./systemprompt.js";
 
@@ -297,19 +298,22 @@ async function handleDiscordMessage(
   openrouter: OpenRouter,
   model: string,
   dataDir: string,
-): Promise<void> {
+  history: Exchange[],
+): Promise<{ prompt: string; response: string } | null> {
   const notesPath = join(dataDir, "rules", "NOTES.md");
   const prompt = discordMsg.content.replace(/<@!?\d+>/g, "").trim();
 
-  if (!prompt) return;
+  if (!prompt) return null;
 
   log.info(`Discord message from user ${discordMsg.author.id}`);
 
   const systemPrompt = buildSystemPrompt(dataDir);
-  const messages: ChatMessage[] = [
-    { role: "system", content: systemPrompt },
-    { role: "user", content: prompt },
-  ];
+  const messages: ChatMessage[] = [{ role: "system", content: systemPrompt }];
+  for (const exchange of history) {
+    messages.push({ role: "user", content: exchange.user });
+    messages.push({ role: "assistant", content: exchange.assistant });
+  }
+  messages.push({ role: "user", content: prompt });
 
   const toolsUsed: string[] = [];
   const toolInputs: Array<{ name: string; args: unknown }> = [];
@@ -335,12 +339,12 @@ async function handleDiscordMessage(
     await discordMsg.reply(
       "Sorry, something went wrong processing your message.",
     );
-    return;
+    return null;
   }
 
   if (!content) {
     await discordMsg.reply("Sorry, I didn't get a response.");
-    return;
+    return null;
   }
 
   conversationLog.push({ kind: "response", content });
@@ -361,6 +365,8 @@ async function handleDiscordMessage(
   for (const chunk of chunks) {
     await discordMsg.reply(chunk);
   }
+
+  return { prompt, response: content };
 }
 
 export async function startDiscordBot(
@@ -405,6 +411,8 @@ export async function startDiscordBot(
     log.info(`Logged in as ${c.user.tag}`);
   });
 
+  const channelHistory = new Map<string, Exchange[]>();
+
   client.on(Events.MessageCreate, async (msg) => {
     if (msg.author.bot) return;
 
@@ -415,7 +423,21 @@ export async function startDiscordBot(
 
     if (!isDM && !isMentioned) return;
 
-    await handleDiscordMessage(msg, openrouter, model, dataDir);
+    const history = channelHistory.get(msg.channelId) ?? [];
+    const result = await handleDiscordMessage(
+      msg,
+      openrouter,
+      model,
+      dataDir,
+      history,
+    );
+    if (result) {
+      const updated = [
+        ...history,
+        { user: result.prompt, assistant: result.response },
+      ].slice(-2);
+      channelHistory.set(msg.channelId, updated);
+    }
   });
 
   await client.login(token);
