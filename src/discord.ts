@@ -9,13 +9,14 @@ import {
   Partials,
 } from "discord.js";
 import { OpenRouter } from "@openrouter/sdk";
+import Database from "better-sqlite3";
 import { trustedTools, untrustedTools, handleToolCall } from "./tools.js";
 import {
   ConversationEntry,
-  nextChatId,
+  openDb,
   writeConversationLog,
+  loadRecentHistory,
 } from "./conversationlog.js";
-import type { Exchange } from "./history.js";
 import { log } from "./logger.js";
 import { buildSystemPrompt } from "./systemprompt.js";
 
@@ -298,14 +299,17 @@ async function handleDiscordMessage(
   openrouter: OpenRouter,
   model: string,
   dataDir: string,
-  history: Exchange[],
-): Promise<{ prompt: string; response: string } | null> {
+  db: Database.Database,
+): Promise<void> {
   const notesPath = join(dataDir, "rules", "NOTES.md");
   const prompt = discordMsg.content.replace(/<@!?\d+>/g, "").trim();
 
-  if (!prompt) return null;
+  if (!prompt) return;
 
   log.info(`Discord message from user ${discordMsg.author.id}`);
+
+  const source = `discord:${discordMsg.channelId}`;
+  const history = loadRecentHistory(db, source);
 
   const systemPrompt = buildSystemPrompt(dataDir);
   const messages: ChatMessage[] = [{ role: "system", content: systemPrompt }];
@@ -339,20 +343,17 @@ async function handleDiscordMessage(
     await discordMsg.reply(
       "Sorry, something went wrong processing your message.",
     );
-    return null;
+    return;
   }
 
   if (!content) {
     await discordMsg.reply("Sorry, I didn't get a response.");
-    return null;
+    return;
   }
 
   conversationLog.push({ kind: "response", content });
 
-  const logDir = join(homedir(), ".troy");
-  mkdirSync(logDir, { recursive: true });
-  const chatId = nextChatId(logDir);
-  writeConversationLog(logDir, chatId, conversationLog);
+  const chatId = writeConversationLog(db, conversationLog, source);
 
   const toolCount = toolsUsed.length;
   const suffix =
@@ -365,8 +366,6 @@ async function handleDiscordMessage(
   for (const chunk of chunks) {
     await discordMsg.reply(chunk);
   }
-
-  return { prompt, response: content };
 }
 
 export async function startDiscordBot(
@@ -397,6 +396,8 @@ export async function startDiscordBot(
   mkdirSync(join(dataDir, "rules"), { recursive: true });
   mkdirSync(join(dataDir, "skills"), { recursive: true });
 
+  const db = openDb(join(homedir(), ".troy"));
+
   const client = new Client({
     intents: [
       GatewayIntentBits.Guilds,
@@ -411,8 +412,6 @@ export async function startDiscordBot(
     log.info(`Logged in as ${c.user.tag}`);
   });
 
-  const channelHistory = new Map<string, Exchange[]>();
-
   client.on(Events.MessageCreate, async (msg) => {
     if (msg.author.bot) return;
 
@@ -423,21 +422,7 @@ export async function startDiscordBot(
 
     if (!isDM && !isMentioned) return;
 
-    const history = channelHistory.get(msg.channelId) ?? [];
-    const result = await handleDiscordMessage(
-      msg,
-      openrouter,
-      model,
-      dataDir,
-      history,
-    );
-    if (result) {
-      const updated = [
-        ...history,
-        { user: result.prompt, assistant: result.response },
-      ].slice(-2);
-      channelHistory.set(msg.channelId, updated);
-    }
+    await handleDiscordMessage(msg, openrouter, model, dataDir, db);
   });
 
   await client.login(token);

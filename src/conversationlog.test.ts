@@ -1,13 +1,14 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
+import { rmSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
   ConversationEntry,
   formatConversationLog,
-  nextChatId,
+  openDb,
   writeConversationLog,
+  loadRecentHistory,
 } from "./conversationlog.js";
 
 function tmpDir(): string {
@@ -90,25 +91,6 @@ describe("conversationlog", () => {
     assert.equal(result, expected);
   });
 
-  it("writeConversationLog creates a file at the expected path", () => {
-    const entries: ConversationEntry[] = [
-      { kind: "prompt", content: "hello" },
-      { kind: "response", content: "hi there" },
-    ];
-    const filePath = writeConversationLog(dir, 42, entries);
-    assert.equal(filePath, join(dir, "logs", "C42.log"));
-    const content = readFileSync(filePath, "utf-8");
-    assert.equal(content, "Prompt:\n  hello\n\nResponse:\n  hi there\n");
-  });
-
-  it("writeConversationLog creates the logs subdirectory", () => {
-    const nested = join(dir, "sub");
-    const entries: ConversationEntry[] = [{ kind: "prompt", content: "test" }];
-    const filePath = writeConversationLog(nested, 1, entries);
-    const content = readFileSync(filePath, "utf-8");
-    assert.equal(content, "Prompt:\n  test\n");
-  });
-
   it("handles entries with empty content", () => {
     const entries: ConversationEntry[] = [
       { kind: "prompt", content: "" },
@@ -119,7 +101,7 @@ describe("conversationlog", () => {
   });
 });
 
-describe("nextChatId", () => {
+describe("writeConversationLog and loadRecentHistory", () => {
   let dir = "";
 
   beforeEach(() => {
@@ -134,34 +116,68 @@ describe("nextChatId", () => {
     }
   });
 
-  it("returns 1 when the logs directory does not exist", () => {
-    assert.equal(nextChatId(dir), 1);
+  it("writeConversationLog returns an auto-incrementing id", () => {
+    const db = openDb(dir);
+    const entries: ConversationEntry[] = [
+      { kind: "prompt", content: "hello" },
+      { kind: "response", content: "hi there" },
+    ];
+    const id1 = writeConversationLog(db, entries);
+    const id2 = writeConversationLog(db, entries);
+    assert.equal(id1, 1);
+    assert.equal(id2, 2);
   });
 
-  it("returns 1 when the logs directory is empty", () => {
-    mkdirSync(join(dir, "logs"), { recursive: true });
-    assert.equal(nextChatId(dir), 1);
+  it("writeConversationLog stores formatted content", () => {
+    const db = openDb(dir);
+    const entries: ConversationEntry[] = [
+      { kind: "prompt", content: "hello" },
+      { kind: "response", content: "hi there" },
+    ];
+    writeConversationLog(db, entries);
+    const row = db
+      .prepare("SELECT content FROM conversations WHERE id = 1")
+      .get() as { content: string };
+    assert.equal(row.content, "Prompt:\n  hello\n\nResponse:\n  hi there\n");
   });
 
-  it("returns 1 when logs directory contains no matching files", () => {
-    mkdirSync(join(dir, "logs"), { recursive: true });
-    writeFileSync(join(dir, "logs", "notes.txt"), "", "utf-8");
-    assert.equal(nextChatId(dir), 1);
+  it("loadRecentHistory returns the last 2 exchanges in order", () => {
+    const db = openDb(dir);
+    const makeEntries = (p: string, r: string): ConversationEntry[] => [
+      { kind: "prompt", content: p },
+      { kind: "response", content: r },
+    ];
+    writeConversationLog(db, makeEntries("q1", "a1"));
+    writeConversationLog(db, makeEntries("q2", "a2"));
+    writeConversationLog(db, makeEntries("q3", "a3"));
+    const history = loadRecentHistory(db);
+    assert.equal(history.length, 2);
+    assert.deepEqual(history[0], { user: "q2", assistant: "a2" });
+    assert.deepEqual(history[1], { user: "q3", assistant: "a3" });
   });
 
-  it("returns max id + 1 when log files exist", () => {
-    const logsDir = join(dir, "logs");
-    mkdirSync(logsDir, { recursive: true });
-    writeFileSync(join(logsDir, "C1.log"), "", "utf-8");
-    writeFileSync(join(logsDir, "C3.log"), "", "utf-8");
-    writeFileSync(join(logsDir, "C5.log"), "", "utf-8");
-    assert.equal(nextChatId(dir), 6);
+  it("loadRecentHistory filters by source", () => {
+    const db = openDb(dir);
+    const entries = (p: string, r: string): ConversationEntry[] => [
+      { kind: "prompt", content: p },
+      { kind: "response", content: r },
+    ];
+    writeConversationLog(db, entries("cli1", "r1"), "cli");
+    writeConversationLog(db, entries("discord1", "r2"), "discord:123");
+    writeConversationLog(db, entries("cli2", "r3"), "cli");
+
+    const cliHistory = loadRecentHistory(db, "cli");
+    assert.equal(cliHistory.length, 2);
+    assert.deepEqual(cliHistory[0], { user: "cli1", assistant: "r1" });
+    assert.deepEqual(cliHistory[1], { user: "cli2", assistant: "r3" });
+
+    const discordHistory = loadRecentHistory(db, "discord:123");
+    assert.equal(discordHistory.length, 1);
+    assert.deepEqual(discordHistory[0], { user: "discord1", assistant: "r2" });
   });
 
-  it("increments correctly after writeConversationLog", () => {
-    const entries: ConversationEntry[] = [{ kind: "prompt", content: "hello" }];
-    writeConversationLog(dir, 1, entries);
-    writeConversationLog(dir, 2, entries);
-    assert.equal(nextChatId(dir), 3);
+  it("loadRecentHistory returns empty array when no history exists", () => {
+    const db = openDb(dir);
+    assert.deepEqual(loadRecentHistory(db), []);
   });
 });
