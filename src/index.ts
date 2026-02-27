@@ -9,10 +9,10 @@ import { trustedTools, untrustedTools, handleToolCall } from "./tools.js";
 import { startDiscordBot } from "./discord.js";
 import {
   ConversationEntry,
-  nextChatId,
+  openDb,
   writeConversationLog,
+  loadRecentHistory,
 } from "./conversationlog.js";
-import { loadHistory, addExchange } from "./history.js";
 import { log } from "./logger.js";
 import { buildSystemPrompt } from "./systemprompt.js";
 
@@ -287,8 +287,8 @@ async function replAction(opts: { dataDir?: string }): Promise<void> {
   const notesPath = join(dataDir, "rules", "NOTES.md");
 
   const logDir = join(homedir(), ".troy");
-  mkdirSync(logDir, { recursive: true });
-  const history = loadHistory(logDir);
+  const db = openDb(logDir);
+  const history = loadRecentHistory(db);
 
   const messages: Message[] = [
     {
@@ -303,7 +303,6 @@ async function replAction(opts: { dataDir?: string }): Promise<void> {
 
   const toolsUsed: string[] = [];
   const toolInputs: Array<{ name: string; args: unknown }> = [];
-  const conversationLog: ConversationEntry[] = [];
 
   const rl = createInterface({ input: processStdin, output: processStdout });
 
@@ -321,7 +320,9 @@ async function replAction(opts: { dataDir?: string }): Promise<void> {
     if (trimmed === "exit" || trimmed === "quit") break;
     if (!trimmed) continue;
 
-    conversationLog.push({ kind: "prompt", content: trimmed });
+    const conversationLog: ConversationEntry[] = [
+      { kind: "prompt", content: trimmed },
+    ];
     messages.push({ role: "user", content: trimmed });
 
     let content = "";
@@ -338,7 +339,6 @@ async function replAction(opts: { dataDir?: string }): Promise<void> {
     } catch (err) {
       log.error(`Error: ${err instanceof Error ? err.message : String(err)}`);
       messages.pop();
-      conversationLog.pop();
       continue;
     }
 
@@ -349,18 +349,14 @@ async function replAction(opts: { dataDir?: string }): Promise<void> {
 
     conversationLog.push({ kind: "response", content });
     messages.push({ role: "assistant", content });
-    addExchange(logDir, trimmed, content);
+
+    const chatId = writeConversationLog(db, conversationLog);
+    log.info(`Saved exchange as C${chatId}`);
 
     processStdout.write(`\n${content}\n\n`);
   }
 
   rl.close();
-
-  if (conversationLog.length > 0) {
-    const chatId = nextChatId(logDir);
-    writeConversationLog(logDir, chatId, conversationLog);
-    log.info(`REPL session saved as C${chatId}`);
-  }
 }
 
 async function runAction(opts: {
@@ -395,8 +391,8 @@ async function runAction(opts: {
   const notesPath = join(dataDir, "rules", "NOTES.md");
 
   const logDir = join(homedir(), ".troy");
-  mkdirSync(logDir, { recursive: true });
-  const history = loadHistory(logDir);
+  const db = openDb(logDir);
+  const history = loadRecentHistory(db);
 
   const messages: Message[] = [
     {
@@ -433,10 +429,7 @@ async function runAction(opts: {
 
   conversationLog.push({ kind: "response", content });
 
-  addExchange(logDir, opts.prompt, content);
-
-  const chatId = nextChatId(logDir);
-  writeConversationLog(logDir, chatId, conversationLog);
+  const chatId = writeConversationLog(db, conversationLog);
 
   const toolCount = toolsUsed.length;
   const suffix =
