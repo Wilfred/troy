@@ -304,6 +304,11 @@ async function handleDiscordMessage(
 
   if (!prompt) return;
 
+  if (prompt.toLowerCase() === "ping") {
+    await discordMsg.reply("pong");
+    return;
+  }
+
   log.info(`Discord message from user ${discordMsg.author.id}`);
 
   try {
