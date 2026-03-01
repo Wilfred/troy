@@ -79,10 +79,6 @@ const delegateToUntrustedTool = {
   },
 };
 
-const searchTools = process.env.BRAVE_SEARCH_API_KEY
-  ? [searchTool, fetchTool]
-  : [];
-
 export const trustedTools = [
   ...noteTools,
   weatherTool,
@@ -91,7 +87,7 @@ export const trustedTools = [
   delegateToUntrustedTool,
 ];
 
-export const untrustedTools = [weatherTool, ...searchTools];
+export const untrustedTools = [weatherTool, searchTool, fetchTool];
 
 export async function handleToolCall(
   name: string,
