@@ -19,6 +19,7 @@ import { SPOTIFY_TOOLS, handleSpotifyToolCall } from "./spotify.js";
 import { REMINDER_TOOLS, handleReminderToolCall } from "./reminders.js";
 import { UPTIME_TOOL, handleUptimeToolCall } from "./uptime.js";
 import { GITHUB_TOOLS, handleGithubToolCall } from "./github.js";
+import { CODE_SEARCH_TOOL, handleCodeSearchToolCall } from "./codesearch.js";
 import { log } from "./logger.js";
 
 const NOTE_TOOLS = [
@@ -95,6 +96,7 @@ export const TRUSTED_TOOLS = [
   ...SPOTIFY_TOOLS,
   ...REMINDER_TOOLS,
   UPTIME_TOOL,
+  CODE_SEARCH_TOOL,
   DELEGATE_TO_UNTRUSTED_TOOL,
 ];
 
@@ -161,6 +163,10 @@ export async function handleToolCall(
 
   if (name === "openrouter_usage") {
     return await handleOpenrouterUsageToolCall(argsJson);
+  }
+
+  if (name === "search_source_code") {
+    return handleCodeSearchToolCall(argsJson);
   }
 
   const calendarResult = await handleCalendarToolCall(name, argsJson);
