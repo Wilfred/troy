@@ -13,6 +13,12 @@ import {
   handleFetchToolCall,
 } from "./search.js";
 import { dateRangeTool, handleDateRangeToolCall } from "./dates.js";
+import {
+  openrouterBalanceTool,
+  openrouterUsageTool,
+  handleOpenrouterBalanceToolCall,
+  handleOpenrouterUsageToolCall,
+} from "./openrouter.js";
 import { log } from "./logger.js";
 
 const noteTools = [
@@ -84,6 +90,8 @@ export const trustedTools = [
   weatherTool,
   ...calendarTools,
   dateRangeTool,
+  openrouterBalanceTool,
+  openrouterUsageTool,
   delegateToUntrustedTool,
 ];
 
@@ -132,6 +140,14 @@ export async function handleToolCall(
 
   if (name === "compute_date_range") {
     return handleDateRangeToolCall(argsJson);
+  }
+
+  if (name === "openrouter_balance") {
+    return await handleOpenrouterBalanceToolCall();
+  }
+
+  if (name === "openrouter_usage") {
+    return await handleOpenrouterUsageToolCall(argsJson);
   }
 
   const calendarResult = await handleCalendarToolCall(name, argsJson);
