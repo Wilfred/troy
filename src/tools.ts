@@ -13,6 +13,7 @@ import {
   handleFetchToolCall,
 } from "./search.js";
 import { dateRangeTool, handleDateRangeToolCall } from "./dates.js";
+import { codeSearchTool, handleCodeSearchToolCall } from "./codesearch.js";
 import { log } from "./logger.js";
 
 const noteTools = [
@@ -88,6 +89,7 @@ export const trustedTools = [
   weatherTool,
   ...calendarTools,
   dateRangeTool,
+  codeSearchTool,
   delegateToUntrustedTool,
 ];
 
@@ -136,6 +138,10 @@ export async function handleToolCall(
 
   if (name === "compute_date_range") {
     return handleDateRangeToolCall(argsJson);
+  }
+
+  if (name === "search_source_code") {
+    return handleCodeSearchToolCall(argsJson);
   }
 
   const calendarResult = await handleCalendarToolCall(name, argsJson);
