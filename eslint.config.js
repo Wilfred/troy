@@ -16,6 +16,11 @@ export default tseslint.config(
           message:
             "Nested named functions are not allowed. Move the function to the top level.",
         },
+        {
+          selector: "ExportNamedDeclaration[declaration=null][source=null]",
+          message:
+            "Block exports are not allowed. Add the `export` keyword directly to the declaration.",
+        },
       ],
     },
   },

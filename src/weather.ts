@@ -34,7 +34,7 @@ interface WeatherResponse {
   };
 }
 
-function describeWeatherCode(code: number): string {
+export function describeWeatherCode(code: number): string {
   const descriptions: Record<number, string> = {
     0: "Clear sky",
     1: "Mainly clear",
@@ -125,8 +125,6 @@ async function fetchWeather(location: string): Promise<string> {
 
   return result;
 }
-
-export { describeWeatherCode };
 
 export const weatherTool = {
   type: "function" as const,

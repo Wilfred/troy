@@ -47,5 +47,6 @@ CI runs typecheck, lint, and format:check on Node 22.
 - ESM modules throughout (Node16 module resolution)
 - TypeScript strict mode enabled
 - ESLint rule: nested named functions are forbidden — all functions must be top-level
+- ESLint rule: block exports (`export { ... }`) are forbidden — add `export` directly to each declaration
 - No classes; functional style with explicit parameter passing
 - Prefer well-maintained npm packages over bespoke implementations

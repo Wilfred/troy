@@ -2,13 +2,13 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import Database from "better-sqlite3";
 
-type ConversationEntry =
+export type ConversationEntry =
   | { kind: "prompt"; content: string }
   | { kind: "response"; content: string }
   | { kind: "tool_input"; name: string; content: string }
   | { kind: "tool_output"; name: string; content: string; duration_ms: number };
 
-type Exchange = { user: string; assistant: string };
+export type Exchange = { user: string; assistant: string };
 
 function indentBlock(text: string): string {
   return text
@@ -30,11 +30,11 @@ function formatEntry(entry: ConversationEntry): string {
   }
 }
 
-function formatConversationLog(entries: ConversationEntry[]): string {
+export function formatConversationLog(entries: ConversationEntry[]): string {
   return entries.map(formatEntry).join("\n\n") + "\n";
 }
 
-function openDb(logDir: string): Database.Database {
+export function openDb(logDir: string): Database.Database {
   mkdirSync(logDir, { recursive: true });
   const db = new Database(join(logDir, "conversations.db"));
   db.exec(`
@@ -49,7 +49,7 @@ function openDb(logDir: string): Database.Database {
   return db;
 }
 
-function writeConversationLog(
+export function writeConversationLog(
   db: Database.Database,
   entries: ConversationEntry[],
   source?: string,
@@ -68,7 +68,10 @@ function writeConversationLog(
   return Number(result.lastInsertRowid);
 }
 
-function loadRecentHistory(db: Database.Database, source?: string): Exchange[] {
+export function loadRecentHistory(
+  db: Database.Database,
+  source?: string,
+): Exchange[] {
   const rows = db
     .prepare(
       "SELECT prompt, response FROM conversations WHERE source = ? ORDER BY id DESC LIMIT 2",
@@ -78,12 +81,3 @@ function loadRecentHistory(db: Database.Database, source?: string): Exchange[] {
     .reverse()
     .map((row) => ({ user: row.prompt, assistant: row.response }));
 }
-
-export {
-  ConversationEntry,
-  Exchange,
-  formatConversationLog,
-  openDb,
-  writeConversationLog,
-  loadRecentHistory,
-};
