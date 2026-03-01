@@ -319,6 +319,11 @@ async function replAction(opts: { dataDir?: string }): Promise<void> {
     if (trimmed === "exit" || trimmed === "quit") break;
     if (!trimmed) continue;
 
+    if (trimmed.toLowerCase() === "ping") {
+      processStdout.write("\npong\n\n");
+      continue;
+    }
+
     const conversationLog: ConversationEntry[] = [
       { kind: "prompt", content: trimmed },
     ];
@@ -364,6 +369,11 @@ async function runAction(opts: {
 }): Promise<void> {
   if (!opts.prompt) {
     return replAction(opts);
+  }
+
+  if (opts.prompt.trim().toLowerCase() === "ping") {
+    console.log("pong");
+    return;
   }
 
   const dataDir = getDataDir(opts.dataDir);
