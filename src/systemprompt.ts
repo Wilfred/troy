@@ -32,7 +32,7 @@ function loadMatchingSkills(skillsDir: string, prompt: string): string[] {
 
 export function buildSystemPrompt(dataDir: string, prompt?: string): string {
   let systemPrompt = readFileSync(
-    new URL("../SYSTEM.md", import.meta.url),
+    new URL("../src/SYSTEM.md", import.meta.url),
     "utf-8",
   );
 
