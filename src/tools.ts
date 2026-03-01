@@ -15,6 +15,7 @@ import {
   handleOpenrouterUsageToolCall,
 } from "./openrouter.js";
 import { spotifyTools, handleSpotifyToolCall } from "./spotify.js";
+import { codeSearchTool, handleCodeSearchToolCall } from "./codesearch.js";
 import { log } from "./logger.js";
 
 const noteTools = [
@@ -89,6 +90,7 @@ export const trustedTools = [
   openrouterBalanceTool,
   openrouterUsageTool,
   ...spotifyTools,
+  codeSearchTool,
   delegateToUntrustedTool,
 ];
 
@@ -145,6 +147,10 @@ export async function handleToolCall(
 
   if (name === "openrouter_usage") {
     return await handleOpenrouterUsageToolCall(argsJson);
+  }
+
+  if (name === "search_source_code") {
+    return handleCodeSearchToolCall(argsJson);
   }
 
   const calendarResult = await handleCalendarToolCall(name, argsJson);
