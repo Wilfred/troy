@@ -324,6 +324,10 @@ async function replAction(opts: { dataDir?: string }): Promise<void> {
       continue;
     }
 
+    // Re-read rules (including NOTES.md) on every prompt so that
+    // updates made by tools or external edits take effect immediately.
+    messages[0] = { role: "system", content: buildSystemPrompt(dataDir) };
+
     const conversationLog: ConversationEntry[] = [
       { kind: "prompt", content: trimmed },
     ];
