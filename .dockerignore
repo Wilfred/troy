@@ -3,4 +3,3 @@ dist
 .git
 .github
 *.md
-!SYSTEM.md
