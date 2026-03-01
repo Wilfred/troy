@@ -13,6 +13,6 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 COPY --from=build /app/dist/ dist/
-COPY SYSTEM.md ./
+COPY src/SYSTEM.md src/
 ENTRYPOINT ["node", "dist/index.js"]
 CMD ["discord"]
