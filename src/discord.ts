@@ -1,5 +1,4 @@
 import { mkdirSync } from "node:fs";
-import { homedir } from "node:os";
 import { join } from "node:path";
 import {
   Client,
@@ -396,7 +395,7 @@ export async function startDiscordBot(
   mkdirSync(join(dataDir, "rules"), { recursive: true });
   mkdirSync(join(dataDir, "skills"), { recursive: true });
 
-  const db = openDb(join(homedir(), ".troy"));
+  const db = openDb(dataDir);
 
   const client = new Client({
     intents: [

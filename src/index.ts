@@ -286,8 +286,7 @@ async function replAction(opts: { dataDir?: string }): Promise<void> {
   const client = new OpenRouter({ apiKey });
   const notesPath = join(dataDir, "rules", "NOTES.md");
 
-  const logDir = join(homedir(), ".troy");
-  const db = openDb(logDir);
+  const db = openDb(dataDir);
   const history = loadRecentHistory(db);
 
   const messages: Message[] = [
@@ -390,8 +389,7 @@ async function runAction(opts: {
   const client = new OpenRouter({ apiKey });
   const notesPath = join(dataDir, "rules", "NOTES.md");
 
-  const logDir = join(homedir(), ".troy");
-  const db = openDb(logDir);
+  const db = openDb(dataDir);
   const history = loadRecentHistory(db);
 
   const messages: Message[] = [
