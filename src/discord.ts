@@ -300,33 +300,32 @@ async function handleDiscordMessage(
   dataDir: string,
   db: Database.Database,
 ): Promise<void> {
-  const notesPath = join(dataDir, "rules", "NOTES.md");
   const prompt = discordMsg.content.replace(/<@!?\d+>/g, "").trim();
 
   if (!prompt) return;
 
   log.info(`Discord message from user ${discordMsg.author.id}`);
 
-  const source = `discord:${discordMsg.channelId}`;
-  const history = loadRecentHistory(db, source);
-
-  const systemPrompt = buildSystemPrompt(dataDir);
-  const messages: ChatMessage[] = [{ role: "system", content: systemPrompt }];
-  for (const exchange of history) {
-    messages.push({ role: "user", content: exchange.user });
-    messages.push({ role: "assistant", content: exchange.assistant });
-  }
-  messages.push({ role: "user", content: prompt });
-
-  const toolsUsed: string[] = [];
-  const toolInputs: Array<{ name: string; args: unknown }> = [];
-  const conversationLog: ConversationEntry[] = [
-    { kind: "prompt", content: prompt },
-  ];
-
-  let content = "";
   try {
-    content = await chatLoop(
+    const notesPath = join(dataDir, "rules", "NOTES.md");
+    const source = `discord:${discordMsg.channelId}`;
+    const history = loadRecentHistory(db, source);
+
+    const systemPrompt = buildSystemPrompt(dataDir);
+    const messages: ChatMessage[] = [{ role: "system", content: systemPrompt }];
+    for (const exchange of history) {
+      messages.push({ role: "user", content: exchange.user });
+      messages.push({ role: "assistant", content: exchange.assistant });
+    }
+    messages.push({ role: "user", content: prompt });
+
+    const toolsUsed: string[] = [];
+    const toolInputs: Array<{ name: string; args: unknown }> = [];
+    const conversationLog: ConversationEntry[] = [
+      { kind: "prompt", content: prompt },
+    ];
+
+    const content = await chatLoop(
       openrouter,
       model,
       messages,
@@ -335,35 +334,36 @@ async function handleDiscordMessage(
       toolInputs,
       conversationLog,
     );
+
+    if (!content) {
+      await discordMsg.reply("Sorry, I didn't get a response.");
+      return;
+    }
+
+    conversationLog.push({ kind: "response", content });
+
+    const chatId = writeConversationLog(db, conversationLog, source);
+
+    const toolCount = toolsUsed.length;
+    const suffix =
+      toolCount > 0
+        ? `[C${chatId}, ${toolCount} tool ${toolCount === 1 ? "use" : "uses"}]`
+        : `[C${chatId}]`;
+    const fullResponse = `${content} ${suffix}`;
+
+    const chunks = splitMessage(fullResponse);
+    for (const chunk of chunks) {
+      await discordMsg.reply(chunk);
+    }
   } catch (err) {
-    log.error(
-      `Error during chat: ${err instanceof Error ? err.message : String(err)}`,
-    );
-    await discordMsg.reply(
-      "Sorry, something went wrong processing your message.",
-    );
-    return;
-  }
-
-  if (!content) {
-    await discordMsg.reply("Sorry, I didn't get a response.");
-    return;
-  }
-
-  conversationLog.push({ kind: "response", content });
-
-  const chatId = writeConversationLog(db, conversationLog, source);
-
-  const toolCount = toolsUsed.length;
-  const suffix =
-    toolCount > 0
-      ? `[C${chatId}, ${toolCount} tool ${toolCount === 1 ? "use" : "uses"}]`
-      : `[C${chatId}]`;
-  const fullResponse = `${content} ${suffix}`;
-
-  const chunks = splitMessage(fullResponse);
-  for (const chunk of chunks) {
-    await discordMsg.reply(chunk);
+    const stack =
+      err instanceof Error ? (err.stack ?? err.message) : String(err);
+    log.error(`Error handling Discord message: ${stack}`);
+    const errorReply = `Sorry, something went wrong:\n\`\`\`\n${stack}\n\`\`\``;
+    const chunks = splitMessage(errorReply);
+    for (const chunk of chunks) {
+      await discordMsg.reply(chunk);
+    }
   }
 }
 
@@ -412,16 +412,22 @@ export async function startDiscordBot(
   });
 
   client.on(Events.MessageCreate, async (msg) => {
-    if (msg.author.bot) return;
+    try {
+      if (msg.author.bot) return;
 
-    if (!allowlist.has(msg.author.id)) return;
+      if (!allowlist.has(msg.author.id)) return;
 
-    const isDM = !msg.guild;
-    const isMentioned = msg.mentions.has(client.user!);
+      const isDM = !msg.guild;
+      const isMentioned = msg.mentions.has(client.user!);
 
-    if (!isDM && !isMentioned) return;
+      if (!isDM && !isMentioned) return;
 
-    await handleDiscordMessage(msg, openrouter, model, dataDir, db);
+      await handleDiscordMessage(msg, openrouter, model, dataDir, db);
+    } catch (err) {
+      const stack =
+        err instanceof Error ? (err.stack ?? err.message) : String(err);
+      log.error(`Unhandled error in MessageCreate handler: ${stack}`);
+    }
   });
 
   await client.login(token);
