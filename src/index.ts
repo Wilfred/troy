@@ -397,7 +397,7 @@ async function runAction(opts: {
   //
   // anthropic/claude-sonnet-4.5: OK, not as good as opus, asked
   // follow-up questions.
-  const model = process.env.OPENROUTER_MODEL || "anthropic/claude-opus-4.6";
+  const model = process.env.OPENROUTER_MODEL || "anthropic/claude-sonnet-4.6";
   log.info(`Starting run with model ${model} (trusted mode)`);
 
   const client = new OpenRouter({ apiKey });
