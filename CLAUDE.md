@@ -19,6 +19,7 @@ npm run typecheck      # Type-check without emitting (tsc --noEmit)
 npm run lint           # ESLint
 npm run format         # Prettier (write)
 npm run format:check   # Prettier (check only)
+npm test               # Compile and run tests (node --test)
 npm start              # Run compiled CLI (node dist/index.js)
 ```
 

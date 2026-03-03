@@ -37,41 +37,41 @@ describe("handleToolCall – note tools", () => {
     }
   });
 
-  it("append_note creates file and appends text when file does not exist", async () => {
+  it("rewrite_notes creates file with given content", async () => {
     const result = await handleToolCall(
-      "append_note",
-      JSON.stringify({ text: "hello world" }),
+      "rewrite_notes",
+      JSON.stringify({ content: "# Notes\n\nhello world\n" }),
       notesPath,
     );
     assert.equal(result, "Done.");
     const content = readFileSync(notesPath, "utf-8");
-    assert.equal(content, "hello world\n");
+    assert.equal(content, "# Notes\n\nhello world\n");
   });
 
-  it("append_note appends to existing file", async () => {
-    writeFileSync(notesPath, "existing note\n", "utf-8");
+  it("rewrite_notes overwrites existing file", async () => {
+    writeFileSync(notesPath, "old content\n", "utf-8");
     await handleToolCall(
-      "append_note",
-      JSON.stringify({ text: "second note" }),
+      "rewrite_notes",
+      JSON.stringify({ content: "# Notes\n\nnew content\n" }),
       notesPath,
     );
     const content = readFileSync(notesPath, "utf-8");
-    assert.equal(content, "existing note\nsecond note\n");
+    assert.equal(content, "# Notes\n\nnew content\n");
   });
 
-  it("append_note multiple calls accumulate entries", async () => {
+  it("rewrite_notes second call fully replaces first", async () => {
     await handleToolCall(
-      "append_note",
-      JSON.stringify({ text: "first" }),
+      "rewrite_notes",
+      JSON.stringify({ content: "# Notes\n\nfirst\n" }),
       notesPath,
     );
     await handleToolCall(
-      "append_note",
-      JSON.stringify({ text: "second" }),
+      "rewrite_notes",
+      JSON.stringify({ content: "# Notes\n\nfirst\nsecond\n" }),
       notesPath,
     );
     const content = readFileSync(notesPath, "utf-8");
-    assert.equal(content, "first\nsecond\n");
+    assert.equal(content, "# Notes\n\nfirst\nsecond\n");
   });
 
   it("edit_note replaces text in existing file", async () => {
