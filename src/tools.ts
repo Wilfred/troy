@@ -14,6 +14,7 @@ import {
   handleOpenrouterBalanceToolCall,
   handleOpenrouterUsageToolCall,
 } from "./openrouter.js";
+import { spotifyTools, handleSpotifyToolCall } from "./spotify.js";
 import { log } from "./logger.js";
 
 const noteTools = [
@@ -87,6 +88,7 @@ export const trustedTools = [
   dateRangeTool,
   openrouterBalanceTool,
   openrouterUsageTool,
+  ...spotifyTools,
   delegateToUntrustedTool,
 ];
 
@@ -148,6 +150,11 @@ export async function handleToolCall(
   const calendarResult = await handleCalendarToolCall(name, argsJson);
   if (calendarResult !== null) {
     return calendarResult;
+  }
+
+  const spotifyResult = await handleSpotifyToolCall(name, argsJson);
+  if (spotifyResult !== null) {
+    return spotifyResult;
   }
 
   log.warn(`Unknown tool: ${name}`);
