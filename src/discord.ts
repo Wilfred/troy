@@ -350,10 +350,13 @@ async function handleDiscordMessage(
     const chatId = writeConversationLog(db, conversationLog, source);
 
     const toolCount = toolsUsed.length;
-    const suffix =
-      toolCount > 0
-        ? `[C${chatId}, ${toolCount} tool ${toolCount === 1 ? "use" : "uses"}]`
-        : `[C${chatId}]`;
+    const toolSummary =
+      toolCount === 0
+        ? ""
+        : toolCount === 1
+          ? `, ${toolsUsed[toolCount - 1]}`
+          : `, ${toolsUsed[toolCount - 1]} and ${toolCount - 1} ${toolCount === 2 ? "other" : "others"}`;
+    const suffix = `[C${chatId}${toolSummary}]`;
     const fullResponse = `${content} ${suffix}`;
 
     const chunks = splitMessage(fullResponse);
