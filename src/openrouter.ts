@@ -1,4 +1,5 @@
 import { log } from "./logger.js";
+import { getSecretSettings } from "./settings.js";
 
 interface CreditsResponse {
   data: {
@@ -27,7 +28,7 @@ interface ActivityResponse {
 
 async function fetchCredits(): Promise<string> {
   log.info("Fetching OpenRouter credits");
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const apiKey = getSecretSettings().openrouterApiKey;
   if (!apiKey) return "Error: OPENROUTER_API_KEY is not set.";
 
   const response = await fetch("https://openrouter.ai/api/v1/credits", {
@@ -54,7 +55,7 @@ async function fetchCredits(): Promise<string> {
 
 async function fetchActivity(date?: string): Promise<string> {
   log.info(`Fetching OpenRouter activity${date ? ` for ${date}` : ""}`);
-  const apiKey = process.env.OPENROUTER_PROVISIONING_KEY;
+  const apiKey = getSecretSettings().openrouterProvisioningKey;
   if (!apiKey)
     return "Error: OPENROUTER_PROVISIONING_KEY is not set. The activity endpoint requires a provisioning (management) key, not a regular API key.";
 

@@ -18,6 +18,7 @@ import {
 } from "./conversationlog.js";
 import { log } from "./logger.js";
 import { buildSystemPrompt } from "./systemprompt.js";
+import { getSecretSettings, getNonSensitiveSettings } from "./settings.js";
 
 type ChatMessage =
   | { role: "system"; content: string }
@@ -376,26 +377,22 @@ export async function startDiscordBot(
   token: string,
   dataDir: string,
 ): Promise<void> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const secret = getSecretSettings();
+
+  const apiKey = secret.openrouterApiKey;
   if (!apiKey) {
     log.error("OPENROUTER_API_KEY environment variable is not set");
     process.exit(1);
   }
 
-  const model = process.env.OPENROUTER_MODEL || "anthropic/claude-opus-4.6";
+  const model = getNonSensitiveSettings().openrouterModel;
   const openrouter = new OpenRouter({ apiKey });
 
-  const rawAllowlist = process.env.DISCORD_ALLOWLIST;
-  if (!rawAllowlist) {
+  if (secret.discordAllowlist.length === 0) {
     log.warn("DISCORD_ALLOWLIST environment variable is not set");
     process.exit(1);
   }
-  const allowlist = new Set(
-    rawAllowlist
-      .split(",")
-      .map((id: string) => id.trim())
-      .filter(Boolean),
-  );
+  const allowlist = new Set(secret.discordAllowlist);
 
   mkdirSync(join(dataDir, "rules"), { recursive: true });
   mkdirSync(join(dataDir, "skills"), { recursive: true });

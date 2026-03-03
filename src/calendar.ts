@@ -1,8 +1,9 @@
 import { calendar_v3, google } from "googleapis";
 import { log } from "./logger.js";
+import { getSecretSettings, getNonSensitiveSettings } from "./settings.js";
 
 function assertCalendarWritesEnabled(): void {
-  if (!process.env.GOOGLE_CALENDAR_ALLOW_WRITES) {
+  if (!getNonSensitiveSettings().googleCalendarAllowWrites) {
     log.warn("Calendar writes are disabled");
     throw new Error(
       "Calendar edits are disabled. Set the GOOGLE_CALENDAR_ALLOW_WRITES environment variable to enable them.",
@@ -11,23 +12,22 @@ function assertCalendarWritesEnabled(): void {
 }
 
 function createGoogleCalendarClient(): calendar_v3.Calendar {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
+  const { googleClientId, googleClientSecret, googleRefreshToken } =
+    getSecretSettings();
 
-  if (!clientId || !clientSecret || !refreshToken) {
+  if (!googleClientId || !googleClientSecret || !googleRefreshToken) {
     throw new Error(
       "Google Calendar requires GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN environment variables.",
     );
   }
 
-  const auth = new google.auth.OAuth2(clientId, clientSecret);
-  auth.setCredentials({ refresh_token: refreshToken });
+  const auth = new google.auth.OAuth2(googleClientId, googleClientSecret);
+  auth.setCredentials({ refresh_token: googleRefreshToken });
   return google.calendar({ version: "v3", auth });
 }
 
 function defaultCalendarId(): string {
-  return process.env.GOOGLE_CALENDAR_ID ?? "primary";
+  return getNonSensitiveSettings().googleCalendarId;
 }
 
 function isDateOnly(value: string): boolean {
