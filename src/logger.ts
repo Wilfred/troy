@@ -1,9 +1,8 @@
 import { createLogger, format, transports } from "winston";
-
-const level = (process.env.LOG_LEVEL ?? "info").toLowerCase();
+import { getNonSensitiveSettings } from "./settings.js";
 
 export const log = createLogger({
-  level,
+  level: getNonSensitiveSettings().logLevel,
   format: format.combine(
     format.timestamp(),
     format.colorize(),
@@ -18,3 +17,7 @@ export const log = createLogger({
     }),
   ],
 });
+
+export function setLogLevel(level: string): void {
+  log.level = level;
+}

@@ -13,10 +13,13 @@ import {
   writeConversationLog,
   loadRecentHistory,
 } from "./conversationlog.js";
-import { log } from "./logger.js";
+import { log, setLogLevel } from "./logger.js";
 import { buildSystemPrompt } from "./systemprompt.js";
-
-const DEFAULT_MODEL = "anthropic/claude-sonnet-4.6";
+import {
+  initSettings,
+  getSecretSettings,
+  getNonSensitiveSettings,
+} from "./settings.js";
 
 type Message =
   | { role: "system"; content: string }
@@ -275,14 +278,16 @@ async function chat(
 
 async function replAction(opts: { dataDir?: string }): Promise<void> {
   const dataDir = getDataDir(opts.dataDir);
+  initSettings(dataDir);
+  setLogLevel(getNonSensitiveSettings().logLevel);
 
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const apiKey = getSecretSettings().openrouterApiKey;
   if (!apiKey) {
     log.error("OPENROUTER_API_KEY environment variable is not set");
     process.exit(1);
   }
 
-  const model = process.env.OPENROUTER_MODEL || DEFAULT_MODEL;
+  const model = getNonSensitiveSettings().openrouterModel;
   log.info(`Starting REPL with model ${model}`);
 
   const client = new OpenRouter({ apiKey });
@@ -383,8 +388,10 @@ async function runAction(opts: {
   }
 
   const dataDir = getDataDir(opts.dataDir);
+  initSettings(dataDir);
+  setLogLevel(getNonSensitiveSettings().logLevel);
 
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const apiKey = getSecretSettings().openrouterApiKey;
   if (!apiKey) {
     log.error("OPENROUTER_API_KEY environment variable is not set");
     process.exit(1);
@@ -399,7 +406,7 @@ async function runAction(opts: {
   //
   // anthropic/claude-sonnet-4.5: OK, not as good as opus, asked
   // follow-up questions.
-  const model = process.env.OPENROUTER_MODEL || DEFAULT_MODEL;
+  const model = getNonSensitiveSettings().openrouterModel;
   log.info(`Starting run with model ${model} (trusted mode)`);
 
   const client = new OpenRouter({ apiKey });
@@ -455,14 +462,17 @@ async function runAction(opts: {
 }
 
 async function discordAction(opts: { dataDir?: string }): Promise<void> {
-  const token = process.env.DISCORD_BOT_TOKEN;
+  const dataDir = getDataDir(opts.dataDir);
+  initSettings(dataDir);
+  setLogLevel(getNonSensitiveSettings().logLevel);
+
+  const token = getSecretSettings().discordBotToken;
   if (!token) {
     log.error("DISCORD_BOT_TOKEN environment variable is not set");
     process.exit(1);
   }
 
   log.info("Starting Discord bot");
-  const dataDir = getDataDir(opts.dataDir);
   await startDiscordBot(token, dataDir);
 }
 

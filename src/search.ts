@@ -1,5 +1,6 @@
 import { NodeHtmlMarkdown } from "node-html-markdown";
 import { log } from "./logger.js";
+import { getSecretSettings } from "./settings.js";
 
 interface BraveSearchResult {
   title: string;
@@ -15,7 +16,7 @@ interface BraveSearchResponse {
 
 async function searchWeb(query: string): Promise<string> {
   log.info(`Web search: ${query}`);
-  const apiKey = process.env.BRAVE_SEARCH_API_KEY;
+  const apiKey = getSecretSettings().braveSearchApiKey;
   if (!apiKey) return "Error: BRAVE_SEARCH_API_KEY is not set.";
 
   const url = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=5`;

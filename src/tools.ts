@@ -14,7 +14,14 @@ import {
   handleOpenrouterBalanceToolCall,
   handleOpenrouterUsageToolCall,
 } from "./openrouter.js";
-import { log } from "./logger.js";
+import { log, setLogLevel } from "./logger.js";
+import {
+  getSecretSettings,
+  getNonSensitiveSettings,
+  isNonSensitiveKey,
+  updateSetting,
+  nonSensitiveKeys,
+} from "./settings.js";
 
 const noteTools = [
   {
@@ -60,6 +67,44 @@ const noteTools = [
   },
 ];
 
+const viewSettingsTool = {
+  type: "function" as const,
+  function: {
+    name: "view_settings",
+    description:
+      "View the current settings. Secret values (API keys, tokens) are redacted.",
+    parameters: {
+      type: "object",
+      properties: {},
+      required: [],
+    },
+  },
+};
+
+const modifySettingsTool = {
+  type: "function" as const,
+  function: {
+    name: "modify_settings",
+    description: `Modify a non-sensitive setting. Changes are persisted to the data directory and survive restarts. Valid keys: ${nonSensitiveKeys.join(", ")}.`,
+    parameters: {
+      type: "object",
+      properties: {
+        key: {
+          type: "string",
+          enum: nonSensitiveKeys,
+          description: "The setting to modify.",
+        },
+        value: {
+          type: "string",
+          description:
+            "The new value. For googleCalendarAllowWrites use 'true' or 'false'.",
+        },
+      },
+      required: ["key", "value"],
+    },
+  },
+};
+
 const delegateToUntrustedTool = {
   type: "function" as const,
   function: {
@@ -87,10 +132,50 @@ export const trustedTools = [
   dateRangeTool,
   openrouterBalanceTool,
   openrouterUsageTool,
+  viewSettingsTool,
+  modifySettingsTool,
   delegateToUntrustedTool,
 ];
 
 export const untrustedTools = [weatherTool, searchTool, fetchTool];
+
+function handleViewSettings(): string {
+  const secret = getSecretSettings();
+  const nonSensitive = getNonSensitiveSettings();
+
+  const redacted = "[REDACTED]";
+  const output = {
+    secrets: {
+      openrouterApiKey: secret.openrouterApiKey ? redacted : "(not set)",
+      discordBotToken: secret.discordBotToken ? redacted : "(not set)",
+      braveSearchApiKey: secret.braveSearchApiKey ? redacted : "(not set)",
+      googleClientId: secret.googleClientId ? redacted : "(not set)",
+      googleClientSecret: secret.googleClientSecret ? redacted : "(not set)",
+      googleRefreshToken: secret.googleRefreshToken ? redacted : "(not set)",
+      discordAllowlist:
+        secret.discordAllowlist.length > 0 ? redacted : "(not set)",
+    },
+    settings: nonSensitive,
+  };
+
+  return JSON.stringify(output, null, 2);
+}
+
+function handleModifySettings(argsJson: string): string {
+  const args = JSON.parse(argsJson) as { key: string; value: string };
+
+  if (!isNonSensitiveKey(args.key)) {
+    return `Error: '${args.key}' is not a valid modifiable setting key.`;
+  }
+
+  updateSetting(args.key, args.value);
+
+  if (args.key === "logLevel") {
+    setLogLevel(args.value);
+  }
+
+  return `Setting '${args.key}' updated to '${args.value}'.`;
+}
 
 export async function handleToolCall(
   name: string,
@@ -143,6 +228,14 @@ export async function handleToolCall(
 
   if (name === "openrouter_usage") {
     return await handleOpenrouterUsageToolCall(argsJson);
+  }
+
+  if (name === "view_settings") {
+    return handleViewSettings();
+  }
+
+  if (name === "modify_settings") {
+    return handleModifySettings(argsJson);
   }
 
   const calendarResult = await handleCalendarToolCall(name, argsJson);
