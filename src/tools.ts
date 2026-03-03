@@ -1,9 +1,4 @@
-import {
-  appendFileSync,
-  existsSync,
-  readFileSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { weatherTool, handleWeatherToolCall } from "./weather.js";
 import { calendarTools, handleCalendarToolCall } from "./calendar.js";
 import {
@@ -25,18 +20,18 @@ const noteTools = [
   {
     type: "function" as const,
     function: {
-      name: "append_note",
+      name: "rewrite_notes",
       description:
-        "Append text to the user's NOTES.md file. Use this to save information the user asks you to remember.",
+        "Overwrite the user's NOTES.md file with new content. Use this to add, update, remove, or reorganize notes. Always base the new content on the current file shown in the system prompt, merging new information into the appropriate sections rather than duplicating headings.",
       parameters: {
         type: "object",
         properties: {
-          text: {
+          content: {
             type: "string",
-            description: "The text to append to NOTES.md",
+            description: "The complete new content for NOTES.md",
           },
         },
-        required: ["text"],
+        required: ["content"],
       },
     },
   },
@@ -104,9 +99,9 @@ export async function handleToolCall(
 ): Promise<string> {
   log.debug(`Handling tool: ${name}`);
 
-  if (name === "append_note") {
-    const args = JSON.parse(argsJson) as { text: string };
-    appendFileSync(notesPath, args.text + "\n", "utf-8");
+  if (name === "rewrite_notes") {
+    const args = JSON.parse(argsJson) as { content: string };
+    writeFileSync(notesPath, args.content, "utf-8");
     return "Done.";
   }
 
