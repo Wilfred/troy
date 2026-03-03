@@ -16,6 +16,8 @@ import {
 import { log } from "./logger.js";
 import { buildSystemPrompt } from "./systemprompt.js";
 
+const DEFAULT_MODEL = "anthropic/claude-sonnet-4.6";
+
 type Message =
   | { role: "system"; content: string }
   | { role: "user"; content: string }
@@ -280,7 +282,7 @@ async function replAction(opts: { dataDir?: string }): Promise<void> {
     process.exit(1);
   }
 
-  const model = process.env.OPENROUTER_MODEL || "anthropic/claude-sonnet-4.6";
+  const model = process.env.OPENROUTER_MODEL || DEFAULT_MODEL;
   log.info(`Starting REPL with model ${model}`);
 
   const client = new OpenRouter({ apiKey });
@@ -397,7 +399,7 @@ async function runAction(opts: {
   //
   // anthropic/claude-sonnet-4.5: OK, not as good as opus, asked
   // follow-up questions.
-  const model = process.env.OPENROUTER_MODEL || "anthropic/claude-sonnet-4.6";
+  const model = process.env.OPENROUTER_MODEL || DEFAULT_MODEL;
   log.info(`Starting run with model ${model} (trusted mode)`);
 
   const client = new OpenRouter({ apiKey });
