@@ -54,8 +54,9 @@ async function fetchCredits(): Promise<string> {
 
 async function fetchActivity(date?: string): Promise<string> {
   log.info(`Fetching OpenRouter activity${date ? ` for ${date}` : ""}`);
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) return "Error: OPENROUTER_API_KEY is not set.";
+  const apiKey = process.env.OPENROUTER_PROVISIONING_KEY;
+  if (!apiKey)
+    return "Error: OPENROUTER_PROVISIONING_KEY is not set. The activity endpoint requires a provisioning (management) key, not a regular API key.";
 
   const url = date
     ? `https://openrouter.ai/api/v1/activity?date=${encodeURIComponent(date)}`
