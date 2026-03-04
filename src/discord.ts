@@ -21,6 +21,7 @@ import {
 import { log } from "./logger.js";
 import { buildSystemPrompt } from "./systemprompt.js";
 import { DueReminder, startReminderScheduler } from "./reminders.js";
+import { formatTablesForDiscord } from "./discordformat.js";
 
 type ChatMessage =
   | { role: "system"; content: string }
@@ -365,6 +366,8 @@ async function handleDiscordMessage(
 
     const chatId = writeConversationLog(db, conversationLog, source);
 
+    const formatted = formatTablesForDiscord(content);
+
     const uniqueTools = [...new Set([...toolsUsed].reverse())].reverse();
     const toolCount = uniqueTools.length;
     const toolSummary =
@@ -380,7 +383,7 @@ async function handleDiscordMessage(
       ? `[C${chatId}](${webUrl.replace(/\/+$/, "")}/conversation/${chatId})`
       : `C${chatId}`;
     const suffix = `[${cLabel}${toolSummary}]`;
-    const fullResponse = `${content} ${suffix}`;
+    const fullResponse = `${formatted} ${suffix}`;
 
     const chunks = splitMessage(fullResponse);
     for (const chunk of chunks) {
