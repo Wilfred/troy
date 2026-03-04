@@ -18,6 +18,7 @@ import {
 } from "./conversationlog.js";
 import { log } from "./logger.js";
 import { buildSystemPrompt } from "./systemprompt.js";
+import { formatTablesForDiscord } from "./discordformat.js";
 
 type ChatMessage =
   | { role: "system"; content: string }
@@ -349,6 +350,8 @@ async function handleDiscordMessage(
 
     const chatId = writeConversationLog(db, conversationLog, source);
 
+    const formatted = formatTablesForDiscord(content);
+
     const toolCount = toolsUsed.length;
     const toolSummary =
       toolCount === 0
@@ -357,7 +360,7 @@ async function handleDiscordMessage(
           ? `, ${toolsUsed[toolCount - 1]}`
           : `, ${toolsUsed[toolCount - 1]} and ${toolCount - 1} ${toolCount === 2 ? "other" : "others"}`;
     const suffix = `[C${chatId}${toolSummary}]`;
-    const fullResponse = `${content} ${suffix}`;
+    const fullResponse = `${formatted} ${suffix}`;
 
     const chunks = splitMessage(fullResponse);
     for (const chunk of chunks) {
