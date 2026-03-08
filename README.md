@@ -51,7 +51,40 @@ consumed by the trusted bot.
 | `create_calendar_event` | Create a new Google Calendar event. |
 | `update_calendar_event` | Edit an existing Google Calendar event. |
 | `delete_calendar_event` | Remove an event from Google Calendar. |
+| `spotify_play` | Resume playback or start playing a track/album/playlist by URI. |
+| `spotify_pause` | Pause Spotify playback. |
+| `spotify_search_playlists` | Search Spotify for playlists by name or keyword. |
+| `spotify_play_playlist` | Search for a playlist and immediately start playing the top result. |
+| `spotify_create_jam` | Create a Spotify Jam session so others can listen along. |
 | `delegate_to_untrusted` | Hand off a task to the untrusted subagent (see below). |
+
+### Spotify setup
+
+The Spotify tools require three environment variables:
+
+| Variable | Description |
+|----------|-------------|
+| `SPOTIFY_CLIENT_ID` | OAuth Client ID from your Spotify app |
+| `SPOTIFY_CLIENT_SECRET` | OAuth Client Secret from your Spotify app |
+| `SPOTIFY_REFRESH_TOKEN` | OAuth2 refresh token for your Spotify account |
+
+To obtain these:
+
+1. Create an app at the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) and set a redirect URI (e.g. `http://localhost:8888/callback`). Copy the **Client ID** and **Client Secret**.
+2. Authorize your app by visiting:
+   ```
+   https://accounts.spotify.com/authorize?client_id=YOUR_CLIENT_ID&response_type=code&redirect_uri=YOUR_REDIRECT_URI&scope=user-modify-playback-state%20user-read-playback-state
+   ```
+3. After authorizing, Spotify redirects to your callback URL with a `code` parameter. Exchange it for tokens:
+   ```bash
+   curl -X POST https://accounts.spotify.com/api/token \
+     -H "Content-Type: application/x-www-form-urlencoded" \
+     -d grant_type=authorization_code \
+     -d code=YOUR_CODE \
+     -d redirect_uri=YOUR_REDIRECT_URI \
+     -u YOUR_CLIENT_ID:YOUR_CLIENT_SECRET
+   ```
+4. Save the `refresh_token` from the response. The access token is refreshed automatically at runtime.
 
 ### Untrusted tools (available to the subagent only)
 
