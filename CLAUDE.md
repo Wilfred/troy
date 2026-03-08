@@ -33,6 +33,7 @@ CI runs typecheck, lint, and format:check on Node 22.
 - `src/tools.ts` — Tool registry (combines all tools) and note tool handlers
 - `src/weather.ts` — Weather tool schema and Open-Meteo API integration
 - `src/calendar.ts` — Google Calendar tool schemas and handlers
+- `src/docs.ts` — Google Docs tool schemas and handlers
 - `src/search.ts` — Web search tool using Brave Search API
 - `src/discord.ts` — Discord bot integration
 - `src/conversationlog.ts` — Conversation logging utilities
