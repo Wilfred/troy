@@ -18,6 +18,7 @@ import {
 } from "./conversationlog.js";
 import { log } from "./logger.js";
 import { buildSystemPrompt } from "./systemprompt.js";
+import { addCacheBreakpoints } from "./cache.js";
 
 type ChatMessage =
   | { role: "system"; content: string }
@@ -68,7 +69,7 @@ async function untrustedChatLoop(
   const completion = await client.chat.send({
     chatGenerationParams: {
       model,
-      messages,
+      messages: addCacheBreakpoints(messages) as typeof messages,
       tools: untrustedTools,
     },
   });
@@ -182,7 +183,7 @@ async function chatLoop(
   const completion = await client.chat.send({
     chatGenerationParams: {
       model,
-      messages,
+      messages: addCacheBreakpoints(messages) as typeof messages,
       tools: trustedTools,
     },
   });

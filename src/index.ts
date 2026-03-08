@@ -15,6 +15,7 @@ import {
 } from "./conversationlog.js";
 import { log } from "./logger.js";
 import { buildSystemPrompt } from "./systemprompt.js";
+import { addCacheBreakpoints } from "./cache.js";
 
 const DEFAULT_MODEL = "anthropic/claude-sonnet-4.6";
 
@@ -49,7 +50,7 @@ async function untrustedChat(
   const completion = await client.chat.send({
     chatGenerationParams: {
       model,
-      messages,
+      messages: addCacheBreakpoints(messages) as typeof messages,
       tools: untrustedTools,
     },
   });
@@ -158,7 +159,7 @@ async function chat(
   const completion = await client.chat.send({
     chatGenerationParams: {
       model,
-      messages,
+      messages: addCacheBreakpoints(messages) as typeof messages,
       tools: trustedTools,
     },
   });
