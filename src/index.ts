@@ -451,7 +451,9 @@ async function runAction(opts: {
       ? ""
       : toolCount === 1
         ? `, ${toolsUsed[toolCount - 1]}`
-        : `, ${toolsUsed[toolCount - 1]} and ${toolCount - 1} ${toolCount === 2 ? "other" : "others"}`;
+        : toolCount === 2
+          ? `, ${toolsUsed[0]}, ${toolsUsed[1]}`
+          : `, ${toolsUsed[toolCount - 1]} and ${toolCount - 1} others`;
   const suffix = `[C${chatId}${toolSummary}]`;
   log.info(`Completed C${chatId} with ${toolCount} tool use(s)`);
   console.log(`${content} ${suffix}`);

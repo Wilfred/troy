@@ -355,7 +355,9 @@ async function handleDiscordMessage(
         ? ""
         : toolCount === 1
           ? `, ${toolsUsed[toolCount - 1]}`
-          : `, ${toolsUsed[toolCount - 1]} and ${toolCount - 1} ${toolCount === 2 ? "other" : "others"}`;
+          : toolCount === 2
+            ? `, ${toolsUsed[0]}, ${toolsUsed[1]}`
+            : `, ${toolsUsed[toolCount - 1]} and ${toolCount - 1} others`;
     const suffix = `[C${chatId}${toolSummary}]`;
     const fullResponse = `${content} ${suffix}`;
 
