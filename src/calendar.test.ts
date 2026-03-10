@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { formatDateWithDay } from "./calendar.js";
+import { formatDateWithDay, isExternalInvite } from "./calendar.js";
 
 describe("formatDateWithDay", () => {
   it("formats a date-only string with the weekday", () => {
@@ -32,5 +32,34 @@ describe("formatDateWithDay", () => {
 
   it("returns an unparseable string unchanged", () => {
     assert.equal(formatDateWithDay("Unknown"), "Unknown");
+  });
+});
+
+describe("isExternalInvite", () => {
+  it("returns false when there is no organizer", () => {
+    assert.equal(isExternalInvite({}), false);
+  });
+
+  it("returns false when organizer.self is true", () => {
+    assert.equal(
+      isExternalInvite({ organizer: { self: true, email: "me@example.com" } }),
+      false,
+    );
+  });
+
+  it("returns true when organizer exists but self is not true", () => {
+    assert.equal(
+      isExternalInvite({
+        organizer: { self: false, email: "attacker@example.com" },
+      }),
+      true,
+    );
+  });
+
+  it("returns true when organizer exists with no self field", () => {
+    assert.equal(
+      isExternalInvite({ organizer: { email: "someone@example.com" } }),
+      true,
+    );
   });
 });

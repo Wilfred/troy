@@ -73,6 +73,14 @@ export function formatDateWithDay(dateStr: string): string {
   return `${parts.weekday}, ${isoDate} at ${time}`;
 }
 
+export function isExternalInvite(event: calendar_v3.Schema$Event): boolean {
+  return event.organizer != null && event.organizer.self !== true;
+}
+
+function redactedField(label: string): string {
+  return `[${label} redacted — external invite]`;
+}
+
 function makeEventTime(
   value: string,
   timezone?: string,
@@ -115,12 +123,21 @@ async function listCalendarEvents(args: {
   for (const event of events) {
     const start = event.start?.dateTime ?? event.start?.date ?? "Unknown";
     const end = event.end?.dateTime ?? event.end?.date ?? "Unknown";
+    const external = isExternalInvite(event);
+
     result += `ID: ${event.id}\n`;
-    result += `Title: ${event.summary ?? "(no title)"}\n`;
+    result += `Title: ${external ? redactedField("title") : (event.summary ?? "(no title)")}\n`;
     result += `Start: ${formatDateWithDay(start)}\n`;
     result += `End: ${formatDateWithDay(end)}\n`;
-    if (event.location) result += `Location: ${event.location}\n`;
-    if (event.description) result += `Description: ${event.description}\n`;
+    if (external) {
+      result += `Organizer: [redacted — external invite]\n`;
+    }
+    if (event.location) {
+      result += `Location: ${external ? redactedField("location") : event.location}\n`;
+    }
+    if (event.description) {
+      result += `Description: ${external ? redactedField("description") : event.description}\n`;
+    }
     result += "\n";
   }
 
