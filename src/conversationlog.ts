@@ -8,7 +8,7 @@ export type ConversationEntry =
   | { kind: "tool_input"; name: string; content: string }
   | { kind: "tool_output"; name: string; content: string; duration_ms: number };
 
-export type Exchange = { user: string; assistant: string };
+type Exchange = { user: string; assistant: string };
 
 function indentBlock(text: string): string {
   return text
