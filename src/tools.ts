@@ -15,6 +15,7 @@ import {
   handleOpenrouterUsageToolCall,
 } from "./openrouter.js";
 import { spotifyTools, handleSpotifyToolCall } from "./spotify.js";
+import { hueTools, handleHueToolCall } from "./hue.js";
 import { log } from "./logger.js";
 
 const noteTools = [
@@ -89,6 +90,7 @@ export const trustedTools = [
   openrouterBalanceTool,
   openrouterUsageTool,
   ...spotifyTools,
+  ...hueTools,
   delegateToUntrustedTool,
 ];
 
@@ -155,6 +157,11 @@ export async function handleToolCall(
   const spotifyResult = await handleSpotifyToolCall(name, argsJson);
   if (spotifyResult !== null) {
     return spotifyResult;
+  }
+
+  const hueResult = await handleHueToolCall(name, argsJson);
+  if (hueResult !== null) {
+    return hueResult;
   }
 
   log.warn(`Unknown tool: ${name}`);
