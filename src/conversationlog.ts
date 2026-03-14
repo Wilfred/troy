@@ -68,6 +68,44 @@ export function writeConversationLog(
   return Number(result.lastInsertRowid);
 }
 
+export type ConversationRow = {
+  id: number;
+  source: string;
+  prompt: string;
+  response: string;
+  content: string;
+};
+
+export function listConversations(
+  db: Database.Database,
+  limit: number = 50,
+  offset: number = 0,
+): ConversationRow[] {
+  return db
+    .prepare(
+      "SELECT id, source, prompt, response, content FROM conversations ORDER BY id DESC LIMIT ? OFFSET ?",
+    )
+    .all(limit, offset) as ConversationRow[];
+}
+
+export function getConversation(
+  db: Database.Database,
+  id: number,
+): ConversationRow | undefined {
+  return db
+    .prepare(
+      "SELECT id, source, prompt, response, content FROM conversations WHERE id = ?",
+    )
+    .get(id) as ConversationRow | undefined;
+}
+
+export function countConversations(db: Database.Database): number {
+  const row = db
+    .prepare("SELECT COUNT(*) as count FROM conversations")
+    .get() as { count: number };
+  return row.count;
+}
+
 export function loadRecentHistory(
   db: Database.Database,
   source?: string,
