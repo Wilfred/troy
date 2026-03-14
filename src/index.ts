@@ -7,6 +7,7 @@ import { Command } from "commander";
 import { OpenRouter } from "@openrouter/sdk";
 import { trustedTools, untrustedTools, handleToolCall } from "./tools.js";
 import { startDiscordBot } from "./discord.js";
+import { startWebServer } from "./web.js";
 import {
   ConversationEntry,
   openDb,
@@ -512,6 +513,20 @@ Environment variables:
   DISCORD_ALLOWLIST        Comma-separated Discord user IDs allowed to use the bot (required)`,
     )
     .action(discordAction);
+
+  program
+    .command("web")
+    .description("Start a web UI for viewing conversation history")
+    .option(
+      "-d, --data-dir <path>",
+      "data directory for .md files (default: ~/troy_data)",
+    )
+    .option("-p, --port <number>", "port to listen on (default: 3000)", "3000")
+    .action((opts: { dataDir?: string; port: string }) => {
+      const dataDir = getDataDir(opts.dataDir);
+      const port = parseInt(opts.port);
+      startWebServer(dataDir, port);
+    });
 
   await program.parseAsync();
 }
