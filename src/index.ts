@@ -15,6 +15,7 @@ import {
 } from "./conversationlog.js";
 import { log } from "./logger.js";
 import { buildSystemPrompt } from "./systemprompt.js";
+import { checkDueReminders } from "./reminders.js";
 
 const DEFAULT_MODEL = "anthropic/claude-sonnet-4.6";
 
@@ -330,10 +331,16 @@ async function replAction(opts: { dataDir?: string }): Promise<void> {
     // updates made by tools or external edits take effect immediately.
     messages[0] = { role: "system", content: buildSystemPrompt(dataDir) };
 
+    const dueReminders = checkDueReminders(dataDir);
+    const userContent =
+      dueReminders.length > 0
+        ? `[DUE REMINDERS]\n${dueReminders.join("\n")}\n[END REMINDERS]\n\n${trimmed}`
+        : trimmed;
+
     const conversationLog: ConversationEntry[] = [
       { kind: "prompt", content: trimmed },
     ];
-    messages.push({ role: "user", content: trimmed });
+    messages.push({ role: "user", content: userContent });
 
     let content = "";
     try {
@@ -418,7 +425,12 @@ async function runAction(opts: {
     messages.push({ role: "user", content: exchange.user });
     messages.push({ role: "assistant", content: exchange.assistant });
   }
-  messages.push({ role: "user", content: opts.prompt });
+  const dueReminders = checkDueReminders(dataDir);
+  const userContent =
+    dueReminders.length > 0
+      ? `[DUE REMINDERS]\n${dueReminders.join("\n")}\n[END REMINDERS]\n\n${opts.prompt}`
+      : opts.prompt;
+  messages.push({ role: "user", content: userContent });
 
   const toolsUsed: string[] = [];
   const toolInputs: Array<{ name: string; args: unknown }> = [];

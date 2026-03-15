@@ -18,6 +18,7 @@ import {
 } from "./conversationlog.js";
 import { log } from "./logger.js";
 import { buildSystemPrompt } from "./systemprompt.js";
+import { checkDueReminders } from "./reminders.js";
 
 type ChatMessage =
   | { role: "system"; content: string }
@@ -322,7 +323,12 @@ async function handleDiscordMessage(
       messages.push({ role: "user", content: exchange.user });
       messages.push({ role: "assistant", content: exchange.assistant });
     }
-    messages.push({ role: "user", content: prompt });
+    const dueReminders = checkDueReminders(dataDir);
+    const userContent =
+      dueReminders.length > 0
+        ? `[DUE REMINDERS]\n${dueReminders.join("\n")}\n[END REMINDERS]\n\n${prompt}`
+        : prompt;
+    messages.push({ role: "user", content: userContent });
 
     const toolsUsed: string[] = [];
     const toolInputs: Array<{ name: string; args: unknown }> = [];

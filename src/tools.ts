@@ -1,4 +1,5 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { weatherTool, handleWeatherToolCall } from "./weather.js";
 import { calendarTools, handleCalendarToolCall } from "./calendar.js";
 import {
@@ -15,6 +16,7 @@ import {
   handleOpenrouterUsageToolCall,
 } from "./openrouter.js";
 import { spotifyTools, handleSpotifyToolCall } from "./spotify.js";
+import { reminderTools, handleReminderToolCall } from "./reminders.js";
 import { log } from "./logger.js";
 
 const noteTools = [
@@ -89,6 +91,7 @@ export const trustedTools = [
   openrouterBalanceTool,
   openrouterUsageTool,
   ...spotifyTools,
+  ...reminderTools,
   delegateToUntrustedTool,
 ];
 
@@ -155,6 +158,12 @@ export async function handleToolCall(
   const spotifyResult = await handleSpotifyToolCall(name, argsJson);
   if (spotifyResult !== null) {
     return spotifyResult;
+  }
+
+  const dataDir = notesPath ? join(dirname(dirname(notesPath))) : "";
+  const reminderResult = handleReminderToolCall(name, argsJson, dataDir);
+  if (reminderResult !== null) {
+    return reminderResult;
   }
 
   log.warn(`Unknown tool: ${name}`);

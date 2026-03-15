@@ -1,0 +1,180 @@
+import { mkdirSync } from "node:fs";
+import { join } from "node:path";
+import Database from "better-sqlite3";
+import { log } from "./logger.js";
+
+interface ReminderRow {
+  id: number;
+  message: string;
+  remind_at: string;
+  created_at: string;
+  delivered: number;
+}
+
+function openRemindersDb(dataDir: string): Database.Database {
+  mkdirSync(dataDir, { recursive: true });
+  const db = new Database(join(dataDir, "reminders.db"));
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS reminders (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      message    TEXT NOT NULL,
+      remind_at  TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      delivered  INTEGER NOT NULL DEFAULT 0
+    )
+  `);
+  return db;
+}
+
+export function checkDueReminders(dataDir: string): string[] {
+  const db = openRemindersDb(dataDir);
+  const now = new Date().toISOString();
+  const rows = db
+    .prepare(
+      "SELECT id, message, remind_at FROM reminders WHERE delivered = 0 AND remind_at <= ? ORDER BY remind_at",
+    )
+    .all(now) as ReminderRow[];
+
+  if (rows.length === 0) {
+    db.close();
+    return [];
+  }
+
+  const ids = rows.map((r) => r.id);
+  db.prepare(
+    `UPDATE reminders SET delivered = 1 WHERE id IN (${ids.map(() => "?").join(",")})`,
+  ).run(...ids);
+  db.close();
+
+  return rows.map((r) => `Reminder (set for ${r.remind_at}): ${r.message}`);
+}
+
+export const reminderTools = [
+  {
+    type: "function" as const,
+    function: {
+      name: "set_reminder",
+      description:
+        "Set a reminder that will be delivered at the specified time. The reminder message will be shown to the user when the time arrives.",
+      parameters: {
+        type: "object",
+        properties: {
+          message: {
+            type: "string",
+            description: "The reminder message to deliver",
+          },
+          remind_at: {
+            type: "string",
+            description:
+              "When to deliver the reminder, as an ISO 8601 datetime string (e.g. '2025-03-15T14:30:00')",
+          },
+        },
+        required: ["message", "remind_at"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "list_reminders",
+      description:
+        "List all pending (undelivered) reminders. Use this when the user asks about their upcoming reminders.",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "delete_reminder",
+      description: "Delete a reminder by its ID.",
+      parameters: {
+        type: "object",
+        properties: {
+          id: {
+            type: "number",
+            description: "The ID of the reminder to delete",
+          },
+        },
+        required: ["id"],
+      },
+    },
+  },
+];
+
+function handleSetReminder(dataDir: string, argsJson: string): string {
+  const args = JSON.parse(argsJson) as {
+    message: string;
+    remind_at: string;
+  };
+
+  const remindAt = new Date(args.remind_at);
+  if (isNaN(remindAt.getTime())) {
+    return "Error: invalid remind_at datetime. Use ISO 8601 format (e.g. '2025-03-15T14:30:00').";
+  }
+
+  const db = openRemindersDb(dataDir);
+  const result = db
+    .prepare("INSERT INTO reminders (message, remind_at) VALUES (?, ?)")
+    .run(args.message, remindAt.toISOString());
+  db.close();
+
+  log.info(
+    `Created reminder #${result.lastInsertRowid} for ${remindAt.toISOString()}`,
+  );
+  return `Reminder #${result.lastInsertRowid} set for ${remindAt.toISOString()}: "${args.message}"`;
+}
+
+function handleListReminders(dataDir: string): string {
+  const db = openRemindersDb(dataDir);
+  const rows = db
+    .prepare(
+      "SELECT id, message, remind_at, created_at FROM reminders WHERE delivered = 0 ORDER BY remind_at",
+    )
+    .all() as ReminderRow[];
+  db.close();
+
+  if (rows.length === 0) {
+    return "No pending reminders.";
+  }
+
+  const lines = rows.map(
+    (r) =>
+      `#${r.id}: "${r.message}" — due ${r.remind_at} (created ${r.created_at})`,
+  );
+  return `Pending reminders:\n${lines.join("\n")}`;
+}
+
+function handleDeleteReminder(dataDir: string, argsJson: string): string {
+  const args = JSON.parse(argsJson) as { id: number };
+  const db = openRemindersDb(dataDir);
+  const result = db.prepare("DELETE FROM reminders WHERE id = ?").run(args.id);
+  db.close();
+
+  if (result.changes === 0) {
+    return `No reminder found with ID #${args.id}.`;
+  }
+
+  log.info(`Deleted reminder #${args.id}`);
+  return `Reminder #${args.id} deleted.`;
+}
+
+export function handleReminderToolCall(
+  name: string,
+  argsJson: string,
+  dataDir: string,
+): string | null {
+  if (name === "set_reminder") {
+    return handleSetReminder(dataDir, argsJson);
+  }
+  if (name === "list_reminders") {
+    return handleListReminders(dataDir);
+  }
+  if (name === "delete_reminder") {
+    return handleDeleteReminder(dataDir, argsJson);
+  }
+  return null;
+}
