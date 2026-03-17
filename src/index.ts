@@ -278,8 +278,15 @@ async function chat(
   return (msg.content as string) || "";
 }
 
-async function replAction(opts: { dataDir?: string }): Promise<void> {
+async function replAction(opts: {
+  dataDir?: string;
+  webPort?: string;
+}): Promise<void> {
   const dataDir = getDataDir(opts.dataDir);
+
+  if (opts.webPort !== "0") {
+    startWebServer(dataDir, parseInt(opts.webPort ?? "3000"));
+  }
 
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
@@ -383,6 +390,7 @@ async function replAction(opts: { dataDir?: string }): Promise<void> {
 async function runAction(opts: {
   prompt?: string;
   dataDir?: string;
+  webPort?: string;
 }): Promise<void> {
   if (!opts.prompt) {
     return replAction(opts);
@@ -470,15 +478,23 @@ async function runAction(opts: {
   console.log(`${content} ${suffix}`);
 }
 
-async function discordAction(opts: { dataDir?: string }): Promise<void> {
+async function discordAction(opts: {
+  dataDir?: string;
+  webPort?: string;
+}): Promise<void> {
   const token = process.env.DISCORD_BOT_TOKEN;
   if (!token) {
     log.error("DISCORD_BOT_TOKEN environment variable is not set");
     process.exit(1);
   }
 
-  log.info("Starting Discord bot");
   const dataDir = getDataDir(opts.dataDir);
+
+  if (opts.webPort !== "0") {
+    startWebServer(dataDir, parseInt(opts.webPort ?? "3000"));
+  }
+
+  log.info("Starting Discord bot");
   await startDiscordBot(token, dataDir);
 }
 
@@ -497,6 +513,10 @@ async function main(): Promise<void> {
       "-d, --data-dir <path>",
       "data directory for .md files (default: ~/troy_data)",
     )
+    .option(
+      "--web-port <number>",
+      "port for the web UI (default: 3000, 0 to disable)",
+    )
     .addHelpText(
       "after",
       `
@@ -512,6 +532,10 @@ Environment variables:
     .option(
       "-d, --data-dir <path>",
       "data directory for .md files (default: ~/troy_data)",
+    )
+    .option(
+      "--web-port <number>",
+      "port for the web UI (default: 3000, 0 to disable)",
     )
     .addHelpText(
       "after",
