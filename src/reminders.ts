@@ -9,6 +9,7 @@ interface ReminderRow {
   remind_at: string;
   created_at: string;
   delivered: number;
+  source: string;
 }
 
 function openRemindersDb(dataDir: string): Database.Database {
@@ -20,18 +21,26 @@ function openRemindersDb(dataDir: string): Database.Database {
       message    TEXT NOT NULL,
       remind_at  TEXT NOT NULL,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      delivered  INTEGER NOT NULL DEFAULT 0
+      delivered  INTEGER NOT NULL DEFAULT 0,
+      source     TEXT NOT NULL DEFAULT 'cli'
     )
   `);
   return db;
 }
 
-export function checkDueReminders(dataDir: string): string[] {
+export interface DueReminder {
+  id: number;
+  message: string;
+  remind_at: string;
+  source: string;
+}
+
+export function checkDueReminders(dataDir: string): DueReminder[] {
   const db = openRemindersDb(dataDir);
   const now = new Date().toISOString();
   const rows = db
     .prepare(
-      "SELECT id, message, remind_at FROM reminders WHERE delivered = 0 AND remind_at <= ? ORDER BY remind_at",
+      "SELECT id, message, remind_at, source FROM reminders WHERE delivered = 0 AND remind_at <= ? ORDER BY remind_at",
     )
     .all(now) as ReminderRow[];
 
@@ -46,7 +55,36 @@ export function checkDueReminders(dataDir: string): string[] {
   ).run(...ids);
   db.close();
 
-  return rows.map((r) => `Reminder (set for ${r.remind_at}): ${r.message}`);
+  return rows.map((r) => ({
+    id: r.id,
+    message: r.message,
+    remind_at: r.remind_at,
+    source: r.source,
+  }));
+}
+
+const POLL_INTERVAL_MS = 30_000;
+
+export function startReminderScheduler(
+  dataDir: string,
+  onDue: (reminders: DueReminder[]) => void,
+): NodeJS.Timeout {
+  const timer = setInterval(() => {
+    try {
+      const due = checkDueReminders(dataDir);
+      if (due.length > 0) {
+        onDue(due);
+      }
+    } catch (err) {
+      log.error(
+        `Reminder scheduler error: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }, POLL_INTERVAL_MS);
+
+  // Don't keep the process alive just for the scheduler
+  timer.unref();
+  return timer;
 }
 
 export const reminderTools = [
@@ -105,7 +143,11 @@ export const reminderTools = [
   },
 ];
 
-function handleSetReminder(dataDir: string, argsJson: string): string {
+function handleSetReminder(
+  dataDir: string,
+  argsJson: string,
+  source: string,
+): string {
   const args = JSON.parse(argsJson) as {
     message: string;
     remind_at: string;
@@ -118,8 +160,10 @@ function handleSetReminder(dataDir: string, argsJson: string): string {
 
   const db = openRemindersDb(dataDir);
   const result = db
-    .prepare("INSERT INTO reminders (message, remind_at) VALUES (?, ?)")
-    .run(args.message, remindAt.toISOString());
+    .prepare(
+      "INSERT INTO reminders (message, remind_at, source) VALUES (?, ?, ?)",
+    )
+    .run(args.message, remindAt.toISOString(), source);
   db.close();
 
   log.info(
@@ -166,9 +210,10 @@ export function handleReminderToolCall(
   name: string,
   argsJson: string,
   dataDir: string,
+  source: string,
 ): string | null {
   if (name === "set_reminder") {
-    return handleSetReminder(dataDir, argsJson);
+    return handleSetReminder(dataDir, argsJson, source);
   }
   if (name === "list_reminders") {
     return handleListReminders(dataDir);

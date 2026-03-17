@@ -101,6 +101,7 @@ export async function handleToolCall(
   name: string,
   argsJson: string,
   notesPath: string,
+  source?: string,
 ): Promise<string> {
   log.debug(`Handling tool: ${name}`);
 
@@ -161,7 +162,12 @@ export async function handleToolCall(
   }
 
   const dataDir = notesPath ? join(dirname(dirname(notesPath))) : "";
-  const reminderResult = handleReminderToolCall(name, argsJson, dataDir);
+  const reminderResult = handleReminderToolCall(
+    name,
+    argsJson,
+    dataDir,
+    source ?? "cli",
+  );
   if (reminderResult !== null) {
     return reminderResult;
   }

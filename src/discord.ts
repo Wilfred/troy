@@ -18,7 +18,7 @@ import {
 } from "./conversationlog.js";
 import { log } from "./logger.js";
 import { buildSystemPrompt } from "./systemprompt.js";
-import { checkDueReminders } from "./reminders.js";
+import { DueReminder, startReminderScheduler } from "./reminders.js";
 
 type ChatMessage =
   | { role: "system"; content: string }
@@ -179,6 +179,7 @@ async function chatLoop(
   toolsUsed: string[],
   toolInputs: Array<{ name: string; args: unknown }>,
   conversationLog: ConversationEntry[],
+  source?: string,
 ): Promise<string> {
   const completion = await client.chat.send({
     chatGenerationParams: {
@@ -242,6 +243,7 @@ async function chatLoop(
           toolCall.function.name,
           toolCall.function.arguments,
           notesPath,
+          source,
         );
         const duration_ms = Date.now() - startTime;
         log.info(
@@ -288,6 +290,7 @@ async function chatLoop(
       toolsUsed,
       toolInputs,
       conversationLog,
+      source,
     );
   }
 
@@ -323,12 +326,7 @@ async function handleDiscordMessage(
       messages.push({ role: "user", content: exchange.user });
       messages.push({ role: "assistant", content: exchange.assistant });
     }
-    const dueReminders = checkDueReminders(dataDir);
-    const userContent =
-      dueReminders.length > 0
-        ? `[DUE REMINDERS]\n${dueReminders.join("\n")}\n[END REMINDERS]\n\n${prompt}`
-        : prompt;
-    messages.push({ role: "user", content: userContent });
+    messages.push({ role: "user", content: prompt });
 
     const toolsUsed: string[] = [];
     const toolInputs: Array<{ name: string; args: unknown }> = [];
@@ -344,6 +342,7 @@ async function handleDiscordMessage(
       toolsUsed,
       toolInputs,
       conversationLog,
+      source,
     );
 
     if (!content) {
@@ -425,6 +424,24 @@ export async function startDiscordBot(
 
   client.once(Events.ClientReady, (c) => {
     log.info(`Logged in as ${c.user.tag}`);
+
+    startReminderScheduler(dataDir, (reminders: DueReminder[]) => {
+      for (const r of reminders) {
+        const match = r.source.match(/^discord:(\d+)$/);
+        if (!match) continue;
+        const channelId = match[1];
+        const channel = client.channels.cache.get(channelId);
+        if (channel && channel.isTextBased() && "send" in channel) {
+          (channel as { send: (msg: string) => Promise<unknown> })
+            .send(`**Reminder:** ${r.message}`)
+            .catch((err: unknown) =>
+              log.error(
+                `Failed to send reminder to channel ${channelId}: ${err}`,
+              ),
+            );
+        }
+      }
+    });
   });
 
   client.on(Events.MessageCreate, async (msg) => {
