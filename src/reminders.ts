@@ -35,7 +35,7 @@ export interface DueReminder {
   source: string;
 }
 
-export function checkDueReminders(dataDir: string): DueReminder[] {
+function checkDueReminders(dataDir: string): DueReminder[] {
   const db = openRemindersDb(dataDir);
   const now = new Date().toISOString();
   const rows = db

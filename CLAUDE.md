@@ -25,6 +25,8 @@ npm start              # Run compiled CLI (node dist/index.js)
 
 CI runs typecheck, lint, and format:check on Node 22.
 
+Run `npx knip` before committing to check for unused exports and dependencies.
+
 ## Architecture
 
 **Source files — keep each file small and focused on a single responsibility:**
