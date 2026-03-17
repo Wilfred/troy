@@ -44,8 +44,11 @@ export function weekContext(now?: Date): string {
   const nextMonday = addDays(monday, 7);
   const nextSunday = addDays(monday, 13);
 
+  const hours = String(today.getHours()).padStart(2, "0");
+  const minutes = String(today.getMinutes()).padStart(2, "0");
+
   return [
-    `Today is ${weekdayName(todayLocal)}, ${fmtDate(todayLocal)}.`,
+    `Today is ${weekdayName(todayLocal)}, ${fmtDate(todayLocal)}. The current time is ${hours}:${minutes}.`,
     `This week: Monday ${fmtDate(monday)} to Sunday ${fmtDate(sunday)}.`,
     `Next week: Monday ${fmtDate(nextMonday)} to Sunday ${fmtDate(nextSunday)}.`,
   ].join("\n");
