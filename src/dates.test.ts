@@ -35,6 +35,18 @@ describe("weekContext", () => {
     assert.ok(ctx.includes("Monday 2025-12-29 to Sunday 2026-01-04"));
     assert.ok(ctx.includes("Monday 2026-01-05 to Sunday 2026-01-11"));
   });
+
+  it("includes current time", () => {
+    const date = new Date(2026, 2, 17, 14, 35); // 14:35
+    const ctx = weekContext(date);
+    assert.ok(ctx.includes("The current time is 14:35"));
+  });
+
+  it("zero-pads single-digit hours and minutes", () => {
+    const date = new Date(2026, 2, 17, 9, 5); // 09:05
+    const ctx = weekContext(date);
+    assert.ok(ctx.includes("The current time is 09:05"));
+  });
 });
 
 describe("computeDateRange", () => {
