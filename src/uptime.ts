@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { log } from "./logger.js";
 
 const processStartTime = new Date();
@@ -21,12 +22,33 @@ function formatAbsolute(date: Date): string {
 
 function getMachineBootTime(): Date {
   const uptimeSeconds = parseFloat(
-    execFileSync("cat", ["/proc/uptime"], { encoding: "utf-8" }).split(" ")[0],
+    readFileSync("/proc/uptime", "utf-8").split(" ")[0],
   );
   return new Date(Date.now() - uptimeSeconds * 1000);
 }
 
-function getLatestCommit(): {
+function getCommitFromFile(): {
+  date: Date;
+  message: string;
+  hash: string;
+} | null {
+  try {
+    const data = JSON.parse(readFileSync("commit-info.json", "utf-8")) as {
+      hash: string;
+      date: string;
+      message: string;
+    };
+    return {
+      hash: data.hash.slice(0, 12),
+      date: new Date(data.date),
+      message: data.message,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function getCommitFromGit(): {
   date: Date;
   message: string;
   hash: string;
@@ -44,6 +66,14 @@ function getLatestCommit(): {
   } catch {
     return null;
   }
+}
+
+function getLatestCommit(): {
+  date: Date;
+  message: string;
+  hash: string;
+} | null {
+  return getCommitFromFile() ?? getCommitFromGit();
 }
 
 export function handleUptimeToolCall(): string {
