@@ -17,6 +17,7 @@ import {
 } from "./openrouter.js";
 import { spotifyTools, handleSpotifyToolCall } from "./spotify.js";
 import { reminderTools, handleReminderToolCall } from "./reminders.js";
+import { uptimeTool, handleUptimeToolCall } from "./uptime.js";
 import { log } from "./logger.js";
 
 const noteTools = [
@@ -92,6 +93,7 @@ export const trustedTools = [
   openrouterUsageTool,
   ...spotifyTools,
   ...reminderTools,
+  uptimeTool,
   delegateToUntrustedTool,
 ];
 
@@ -145,6 +147,10 @@ export async function handleToolCall(
 
   if (name === "openrouter_balance") {
     return await handleOpenrouterBalanceToolCall();
+  }
+
+  if (name === "get_uptime") {
+    return handleUptimeToolCall();
   }
 
   if (name === "openrouter_usage") {
