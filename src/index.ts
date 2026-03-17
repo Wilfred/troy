@@ -15,7 +15,7 @@ import {
 } from "./conversationlog.js";
 import { log } from "./logger.js";
 import { buildSystemPrompt } from "./systemprompt.js";
-import { checkDueReminders } from "./reminders.js";
+import { DueReminder, startReminderScheduler } from "./reminders.js";
 
 const DEFAULT_MODEL = "anthropic/claude-sonnet-4.6";
 
@@ -155,6 +155,7 @@ async function chat(
   toolsUsed: string[],
   toolInputs: Array<{ name: string; args: unknown }>,
   conversationLog: ConversationEntry[],
+  source?: string,
 ): Promise<string> {
   const completion = await client.chat.send({
     chatGenerationParams: {
@@ -220,6 +221,7 @@ async function chat(
           toolCall.function.name,
           toolCall.function.arguments,
           notesPath,
+          source,
         );
         const duration_ms = Date.now() - startTime;
         log.info(
@@ -268,6 +270,7 @@ async function chat(
       toolsUsed,
       toolInputs,
       conversationLog,
+      source,
     );
   }
 
@@ -308,6 +311,12 @@ async function replAction(opts: { dataDir?: string }): Promise<void> {
 
   const rl = createInterface({ input: processStdin, output: processStdout });
 
+  startReminderScheduler(dataDir, (reminders: DueReminder[]) => {
+    for (const r of reminders) {
+      processStdout.write(`\n[Reminder]: ${r.message}\n`);
+    }
+  });
+
   processStdout.write('Troy REPL (Ctrl+D or "exit" to quit)\n\n');
 
   while (true) {
@@ -331,16 +340,10 @@ async function replAction(opts: { dataDir?: string }): Promise<void> {
     // updates made by tools or external edits take effect immediately.
     messages[0] = { role: "system", content: buildSystemPrompt(dataDir) };
 
-    const dueReminders = checkDueReminders(dataDir);
-    const userContent =
-      dueReminders.length > 0
-        ? `[DUE REMINDERS]\n${dueReminders.join("\n")}\n[END REMINDERS]\n\n${trimmed}`
-        : trimmed;
-
     const conversationLog: ConversationEntry[] = [
       { kind: "prompt", content: trimmed },
     ];
-    messages.push({ role: "user", content: userContent });
+    messages.push({ role: "user", content: trimmed });
 
     let content = "";
     try {
@@ -425,12 +428,7 @@ async function runAction(opts: {
     messages.push({ role: "user", content: exchange.user });
     messages.push({ role: "assistant", content: exchange.assistant });
   }
-  const dueReminders = checkDueReminders(dataDir);
-  const userContent =
-    dueReminders.length > 0
-      ? `[DUE REMINDERS]\n${dueReminders.join("\n")}\n[END REMINDERS]\n\n${opts.prompt}`
-      : opts.prompt;
-  messages.push({ role: "user", content: userContent });
+  messages.push({ role: "user", content: opts.prompt });
 
   const toolsUsed: string[] = [];
   const toolInputs: Array<{ name: string; args: unknown }> = [];
