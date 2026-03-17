@@ -14,5 +14,6 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 COPY --from=build /app/dist/ dist/
 COPY src/SYSTEM.md src/
+COPY commit-info.json ./
 ENTRYPOINT ["node", "dist/index.js"]
 CMD ["discord"]

@@ -28,3 +28,4 @@ build/
 .env
 SYSTEM.private.md
 NOTES.md
+commit-info.json
