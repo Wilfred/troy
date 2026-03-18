@@ -363,7 +363,11 @@ async function handleDiscordMessage(
           : toolCount === 2
             ? `, ${toolsUsed[0]}, ${toolsUsed[1]}`
             : `, ${toolsUsed[toolCount - 1]} and ${toolCount - 1} others`;
-    const suffix = `[C${chatId}${toolSummary}]`;
+    const webUrl = process.env.TROY_WEB_URL;
+    const cLabel = webUrl
+      ? `[C${chatId}](${webUrl.replace(/\/+$/, "")}/conversation/${chatId})`
+      : `C${chatId}`;
+    const suffix = `[${cLabel}${toolSummary}]`;
     const fullResponse = `${content} ${suffix}`;
 
     const chunks = splitMessage(fullResponse);
