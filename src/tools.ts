@@ -18,6 +18,7 @@ import {
 import { spotifyTools, handleSpotifyToolCall } from "./spotify.js";
 import { reminderTools, handleReminderToolCall } from "./reminders.js";
 import { uptimeTool, handleUptimeToolCall } from "./uptime.js";
+import { githubTools, handleGithubToolCall } from "./github.js";
 import { log } from "./logger.js";
 
 const noteTools = [
@@ -97,7 +98,12 @@ export const trustedTools = [
   delegateToUntrustedTool,
 ];
 
-export const untrustedTools = [weatherTool, searchTool, fetchTool];
+export const untrustedTools = [
+  weatherTool,
+  searchTool,
+  fetchTool,
+  ...githubTools,
+];
 
 export async function handleToolCall(
   name: string,
@@ -165,6 +171,11 @@ export async function handleToolCall(
   const spotifyResult = await handleSpotifyToolCall(name, argsJson);
   if (spotifyResult !== null) {
     return spotifyResult;
+  }
+
+  const githubResult = await handleGithubToolCall(name, argsJson);
+  if (githubResult !== null) {
+    return githubResult;
   }
 
   const dataDir = notesPath ? join(dirname(dirname(notesPath))) : "";
