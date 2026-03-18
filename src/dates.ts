@@ -31,7 +31,7 @@ function weekdayName(date: Date): string {
  *
  * @param now - override for testing; defaults to `new Date()`.
  */
-export function weekContext(now?: Date): string {
+export function dateTimeContext(now?: Date): string {
   const today = now ?? new Date();
   const todayLocal = new Date(
     today.getFullYear(),

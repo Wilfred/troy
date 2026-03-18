@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { weekContext } from "./dates.js";
+import { dateTimeContext } from "./dates.js";
 import { log } from "./logger.js";
 
 function getInitialSentence(prompt: string): string {
@@ -59,7 +59,7 @@ export function buildSystemPrompt(dataDir: string, prompt?: string): string {
   }
   log.debug(`Loaded ${rulesCount} rule(s) and ${skillsCount} skill(s)`);
 
-  systemPrompt += `\n\n${weekContext()}`;
+  systemPrompt += `\n\n${dateTimeContext()}`;
 
   const currentUser = process.env.USER;
   if (currentUser) {
