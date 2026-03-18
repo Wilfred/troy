@@ -1,11 +1,11 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { weekContext, computeDateRange } from "./dates.js";
+import { dateTimeContext, computeDateRange } from "./dates.js";
 
-describe("weekContext", () => {
+describe("dateTimeContext", () => {
   it("returns correct week boundaries for a Monday", () => {
     const monday = new Date(2026, 1, 23); // Mon 2026-02-23
-    const ctx = weekContext(monday);
+    const ctx = dateTimeContext(monday);
     assert.ok(ctx.includes("Monday, 2026-02-23"));
     assert.ok(ctx.includes("Monday 2026-02-23 to Sunday 2026-03-01"));
     assert.ok(ctx.includes("Monday 2026-03-02 to Sunday 2026-03-08"));
@@ -13,7 +13,7 @@ describe("weekContext", () => {
 
   it("returns correct week boundaries for a Wednesday", () => {
     const wed = new Date(2026, 1, 25); // Wed 2026-02-25
-    const ctx = weekContext(wed);
+    const ctx = dateTimeContext(wed);
     assert.ok(ctx.includes("Wednesday, 2026-02-25"));
     // Week still starts on the preceding Monday
     assert.ok(ctx.includes("Monday 2026-02-23 to Sunday 2026-03-01"));
@@ -21,7 +21,7 @@ describe("weekContext", () => {
 
   it("returns correct week boundaries for a Sunday", () => {
     const sun = new Date(2026, 2, 1); // Sun 2026-03-01
-    const ctx = weekContext(sun);
+    const ctx = dateTimeContext(sun);
     assert.ok(ctx.includes("Sunday, 2026-03-01"));
     // Sunday belongs to the Mon-Sun week that started Feb 23
     assert.ok(ctx.includes("Monday 2026-02-23 to Sunday 2026-03-01"));
@@ -30,7 +30,7 @@ describe("weekContext", () => {
 
   it("handles year boundary", () => {
     const wed = new Date(2025, 11, 31); // Wed 2025-12-31
-    const ctx = weekContext(wed);
+    const ctx = dateTimeContext(wed);
     assert.ok(ctx.includes("Wednesday, 2025-12-31"));
     assert.ok(ctx.includes("Monday 2025-12-29 to Sunday 2026-01-04"));
     assert.ok(ctx.includes("Monday 2026-01-05 to Sunday 2026-01-11"));
@@ -38,13 +38,13 @@ describe("weekContext", () => {
 
   it("includes current time", () => {
     const date = new Date(2026, 2, 17, 14, 35); // 14:35
-    const ctx = weekContext(date);
+    const ctx = dateTimeContext(date);
     assert.ok(ctx.includes("The current time is 14:35"));
   });
 
   it("zero-pads single-digit hours and minutes", () => {
     const date = new Date(2026, 2, 17, 9, 5); // 09:05
-    const ctx = weekContext(date);
+    const ctx = dateTimeContext(date);
     assert.ok(ctx.includes("The current time is 09:05"));
   });
 });
