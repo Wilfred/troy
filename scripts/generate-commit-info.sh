@@ -1,10 +1,8 @@
 #!/bin/sh
-# Generate commit-info.json for use in Docker containers where .git is unavailable.
+# Print docker build args for commit info.
+# Usage: docker build $(./scripts/generate-commit-info.sh) .
 set -e
-cat > commit-info.json <<EOF
-{
-  "hash": "$(git rev-parse HEAD)",
-  "date": "$(git log -1 --format=%aI)",
-  "message": "$(git log -1 --format=%s | sed 's/"/\\"/g')"
-}
-EOF
+HASH=$(git rev-parse HEAD)
+DATE=$(git log -1 --format=%aI)
+MESSAGE=$(git log -1 --format=%s)
+printf -- '--build-arg COMMIT_HASH=%s --build-arg COMMIT_DATE=%s --build-arg COMMIT_MESSAGE=%s\n' "$HASH" "$DATE" "$MESSAGE"
