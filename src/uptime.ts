@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { LOG } from "./logger.js";
+import { log } from "./logger.js";
 
 const PROCESS_START_TIME = new Date();
 
@@ -77,7 +77,7 @@ function getLatestCommit(): {
 }
 
 export function handleUptimeToolCall(): string {
-  LOG.info("Fetching uptime info");
+  log.info("Fetching uptime info");
 
   const now = Date.now();
   const processUptimeMs = now - PROCESS_START_TIME.getTime();

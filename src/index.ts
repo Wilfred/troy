@@ -14,7 +14,7 @@ import {
   writeConversationLog,
   loadRecentHistory,
 } from "./conversationlog.js";
-import { LOG } from "./logger.js";
+import { log } from "./logger.js";
 import { buildSystemPrompt } from "./systemprompt.js";
 import { DueReminder, startReminderScheduler } from "./reminders.js";
 import { MODEL } from "./consts.js";
@@ -58,7 +58,7 @@ async function untrustedChat(
   const choice = completion.choices?.[0];
   const msg = choice?.message;
   if (!msg) {
-    LOG.error("No response from untrusted subagent");
+    log.error("No response from untrusted subagent");
     return "Error: no response from subagent.";
   }
 
@@ -76,7 +76,7 @@ async function untrustedChat(
         name: toolCall.function.name,
         content: toolCall.function.arguments,
       });
-      LOG.info(`Untrusted tool call: ${toolCall.function.name}`);
+      log.info(`Untrusted tool call: ${toolCall.function.name}`);
       const startTime = Date.now();
       try {
         const result = await handleToolCall(
@@ -85,7 +85,7 @@ async function untrustedChat(
           "",
         );
         const duration_ms = Date.now() - startTime;
-        LOG.info(
+        log.info(
           `Untrusted tool completed: ${toolCall.function.name} (${duration_ms}ms)`,
         );
         messages.push({
@@ -102,7 +102,7 @@ async function untrustedChat(
       } catch (err) {
         const duration_ms = Date.now() - startTime;
         const errorMsg = `Error in ${toolCall.function.name}: ${err instanceof Error ? err.message : String(err)}`;
-        LOG.error(
+        log.error(
           `Untrusted tool failed: ${toolCall.function.name} (${duration_ms}ms)`,
         );
         messages.push({
@@ -132,7 +132,7 @@ async function runUntrustedSubagent(
   conversationLog: ConversationEntry[],
   toolsUsed: string[],
 ): Promise<string> {
-  LOG.info("Starting untrusted subagent");
+  log.info("Starting untrusted subagent");
   conversationLog.push({ kind: "response", content: `[subagent] ${prompt}` });
 
   const messages: Message[] = [
@@ -168,7 +168,7 @@ async function chat(
   const choice = completion.choices?.[0];
   const msg = choice?.message;
   if (!msg) {
-    LOG.error("No response from model");
+    log.error("No response from model");
     process.exit(1);
   }
 
@@ -201,7 +201,7 @@ async function chat(
         name: toolCall.function.name,
         content: JSON.stringify(parsedArgs, null, 2),
       });
-      LOG.info(`Trusted tool call: ${toolCall.function.name}`);
+      log.info(`Trusted tool call: ${toolCall.function.name}`);
 
       if (toolCall.function.name === "delegate_to_untrusted") {
         const args = parsedArgs as { prompt: string };
@@ -224,7 +224,7 @@ async function chat(
           source,
         );
         const duration_ms = Date.now() - startTime;
-        LOG.info(
+        log.info(
           `Trusted tool completed: ${toolCall.function.name} (${duration_ms}ms)`,
         );
         messages.push({
@@ -241,7 +241,7 @@ async function chat(
       } catch (err) {
         const duration_ms = Date.now() - startTime;
         const errorMsg = `Error in ${toolCall.function.name}: ${err instanceof Error ? err.message : String(err)}`;
-        LOG.error(
+        log.error(
           `Trusted tool failed: ${toolCall.function.name} (${duration_ms}ms)`,
         );
         messages.push({
@@ -289,12 +289,12 @@ async function replAction(opts: {
 
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    LOG.error("OPENROUTER_API_KEY environment variable is not set");
+    log.error("OPENROUTER_API_KEY environment variable is not set");
     process.exit(1);
   }
 
   const model = MODEL;
-  LOG.info(`Starting REPL with model ${model}`);
+  log.info(`Starting REPL with model ${model}`);
 
   const client = new OpenRouter({ apiKey });
   const notesPath = join(dataDir, "rules", "NOTES.md");
@@ -364,13 +364,13 @@ async function replAction(opts: {
         conversationLog,
       );
     } catch (err) {
-      LOG.error(`Error: ${err instanceof Error ? err.message : String(err)}`);
+      log.error(`Error: ${err instanceof Error ? err.message : String(err)}`);
       messages.pop();
       continue;
     }
 
     if (!content) {
-      LOG.error("No response content from model");
+      log.error("No response content from model");
       continue;
     }
 
@@ -378,7 +378,7 @@ async function replAction(opts: {
     messages.push({ role: "assistant", content });
 
     const chatId = writeConversationLog(db, conversationLog);
-    LOG.info(`Saved exchange as C${chatId}`);
+    log.info(`Saved exchange as C${chatId}`);
 
     processStdout.write(`\n${content}\n\n`);
   }
@@ -404,7 +404,7 @@ async function runAction(opts: {
 
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    LOG.error("OPENROUTER_API_KEY environment variable is not set");
+    log.error("OPENROUTER_API_KEY environment variable is not set");
     process.exit(1);
   }
 
@@ -420,7 +420,7 @@ async function runAction(opts: {
   //
   // anthropic/claude-sonnet-4-6: latest sonnet, lower latency than opus.
   const model = MODEL;
-  LOG.info(`Starting run with model ${model} (trusted mode)`);
+  log.info(`Starting run with model ${model} (trusted mode)`);
 
   const client = new OpenRouter({ apiKey });
   const notesPath = join(dataDir, "rules", "NOTES.md");
@@ -445,7 +445,7 @@ async function runAction(opts: {
   const conversationLog: ConversationEntry[] = [
     { kind: "prompt", content: opts.prompt },
   ];
-  LOG.info("Starting trusted agent");
+  log.info("Starting trusted agent");
   const content = await chat(
     client,
     model,
@@ -457,7 +457,7 @@ async function runAction(opts: {
   );
 
   if (!content) {
-    LOG.error("No response content from model");
+    log.error("No response content from model");
     process.exit(1);
   }
 
@@ -475,7 +475,7 @@ async function runAction(opts: {
           ? `, ${toolsUsed[0]}, ${toolsUsed[1]}`
           : `, ${toolsUsed[toolCount - 1]} and ${toolCount - 1} others`;
   const suffix = `[C${chatId}${toolSummary}]`;
-  LOG.info(`Completed C${chatId} with ${toolCount} tool use(s)`);
+  log.info(`Completed C${chatId} with ${toolCount} tool use(s)`);
   console.log(`${content} ${suffix}`);
 }
 
@@ -485,7 +485,7 @@ async function discordAction(opts: {
 }): Promise<void> {
   const token = process.env.DISCORD_BOT_TOKEN;
   if (!token) {
-    LOG.error("DISCORD_BOT_TOKEN environment variable is not set");
+    log.error("DISCORD_BOT_TOKEN environment variable is not set");
     process.exit(1);
   }
 
@@ -496,11 +496,11 @@ async function discordAction(opts: {
       ? startWebServer(dataDir, parseInt(opts.webPort ?? "3000"))
       : undefined;
 
-  LOG.info("Starting Discord bot");
+  log.info("Starting Discord bot");
   const client = await startDiscordBot(token, dataDir);
 
   const shutdown = (): void => {
-    LOG.info("Shutting down Discord bot");
+    log.info("Shutting down Discord bot");
     client.destroy();
     webServer?.close();
   };

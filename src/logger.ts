@@ -2,7 +2,8 @@ import { createLogger, format, transports } from "winston";
 
 const LEVEL = (process.env.LOG_LEVEL ?? "info").toLowerCase();
 
-export const LOG = createLogger({
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export const log = createLogger({
   level: LEVEL,
   format: format.combine(
     format.timestamp(),

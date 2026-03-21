@@ -1,9 +1,9 @@
 import { calendar_v3, google } from "googleapis";
-import { LOG } from "./logger.js";
+import { log } from "./logger.js";
 
 function assertCalendarWritesEnabled(): void {
   if (!process.env.GOOGLE_CALENDAR_ALLOW_WRITES) {
-    LOG.warn("Calendar writes are disabled");
+    log.warn("Calendar writes are disabled");
     throw new Error(
       "Calendar edits are disabled. Set the GOOGLE_CALENDAR_ALLOW_WRITES environment variable to enable them.",
     );
@@ -384,7 +384,7 @@ export async function handleCalendarToolCall(
   argsJson: string,
 ): Promise<string | null> {
   if (name === "list_calendar_events") {
-    LOG.info("Listing calendar events");
+    log.info("Listing calendar events");
     const args = JSON.parse(argsJson) as {
       time_min?: string;
       time_max?: string;
@@ -395,7 +395,7 @@ export async function handleCalendarToolCall(
   }
 
   if (name === "create_calendar_event") {
-    LOG.info("Creating calendar event");
+    log.info("Creating calendar event");
     const args = JSON.parse(argsJson) as {
       summary: string;
       start: string;
@@ -409,7 +409,7 @@ export async function handleCalendarToolCall(
   }
 
   if (name === "update_calendar_event") {
-    LOG.info("Updating calendar event");
+    log.info("Updating calendar event");
     const args = JSON.parse(argsJson) as {
       event_id: string;
       summary?: string;
@@ -424,7 +424,7 @@ export async function handleCalendarToolCall(
   }
 
   if (name === "delete_calendar_event") {
-    LOG.info("Deleting calendar event");
+    log.info("Deleting calendar event");
     const args = JSON.parse(argsJson) as {
       event_id: string;
       calendar_id?: string;

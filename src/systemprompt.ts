@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { dateTimeContext } from "./dates.js";
-import { LOG } from "./logger.js";
+import { log } from "./logger.js";
 
 function getInitialSentence(prompt: string): string {
   const match = /^[^.!?]*[.!?]?/.exec(prompt);
@@ -57,7 +57,7 @@ export function buildSystemPrompt(dataDir: string, prompt?: string): string {
       systemPrompt += "\n\n" + content;
     }
   }
-  LOG.debug(`Loaded ${rulesCount} rule(s) and ${skillsCount} skill(s)`);
+  log.debug(`Loaded ${rulesCount} rule(s) and ${skillsCount} skill(s)`);
 
   systemPrompt += `\n\n${dateTimeContext()}`;
 

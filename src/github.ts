@@ -1,4 +1,4 @@
-import { LOG } from "./logger.js";
+import { log } from "./logger.js";
 
 const API_BASE = "https://api.github.com";
 
@@ -16,11 +16,11 @@ function authHeaders(): Record<string, string> {
 
 async function githubFetch(path: string): Promise<unknown> {
   const url = `${API_BASE}${path}`;
-  LOG.info(`GitHub API: ${url}`);
+  log.info(`GitHub API: ${url}`);
   const response = await fetch(url, { headers: authHeaders() });
   if (!response.ok) {
     const body = await response.text();
-    LOG.warn(`GitHub API error: ${response.status} ${body}`);
+    log.warn(`GitHub API error: ${response.status} ${body}`);
     throw new Error(
       `GitHub API returned ${response.status} ${response.statusText}`,
     );

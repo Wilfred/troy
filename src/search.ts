@@ -1,5 +1,5 @@
 import { NodeHtmlMarkdown } from "node-html-markdown";
-import { LOG } from "./logger.js";
+import { log } from "./logger.js";
 
 interface BraveSearchResult {
   title: string;
@@ -14,7 +14,7 @@ interface BraveSearchResponse {
 }
 
 async function searchWeb(query: string): Promise<string> {
-  LOG.info(`Web search: ${query}`);
+  log.info(`Web search: ${query}`);
   const apiKey = process.env.BRAVE_SEARCH_API_KEY;
   if (!apiKey) return "Error: BRAVE_SEARCH_API_KEY is not set.";
 
@@ -28,7 +28,7 @@ async function searchWeb(query: string): Promise<string> {
   });
 
   if (!response.ok) {
-    LOG.warn(
+    log.warn(
       `Brave Search API error: ${response.status} ${response.statusText}`,
     );
     return `Error: Brave Search API returned ${response.status} ${response.statusText}`;
@@ -73,13 +73,13 @@ export async function handleSearchToolCall(argsJson: string): Promise<string> {
 }
 
 async function fetchPage(url: string): Promise<string> {
-  LOG.info(`Web fetch: ${url}`);
+  log.info(`Web fetch: ${url}`);
   const response = await fetch(url, {
     headers: { "User-Agent": "Troy/1.0" },
   });
 
   if (!response.ok) {
-    LOG.warn(`Web fetch error: ${response.status} ${response.statusText}`);
+    log.warn(`Web fetch error: ${response.status} ${response.statusText}`);
     return `Error: fetch returned ${response.status} ${response.statusText}`;
   }
 

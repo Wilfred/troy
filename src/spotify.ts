@@ -1,4 +1,4 @@
-import { LOG } from "./logger.js";
+import { log } from "./logger.js";
 
 let cachedToken: { value: string; expiresAt: number } | null = null;
 
@@ -92,7 +92,7 @@ async function resumePlayback(args: {
   uri?: string;
   device_id?: string;
 }): Promise<string> {
-  LOG.info("Spotify: resuming playback");
+  log.info("Spotify: resuming playback");
   const params = args.device_id
     ? `?device_id=${encodeURIComponent(args.device_id)}`
     : "";
@@ -113,7 +113,7 @@ async function resumePlayback(args: {
 }
 
 async function pausePlayback(args: { device_id?: string }): Promise<string> {
-  LOG.info("Spotify: pausing playback");
+  log.info("Spotify: pausing playback");
   const params = args.device_id
     ? `?device_id=${encodeURIComponent(args.device_id)}`
     : "";
@@ -126,7 +126,7 @@ async function searchPlaylists(args: {
   limit?: number;
 }): Promise<string> {
   const limit = args.limit ?? 5;
-  LOG.info(`Spotify: searching playlists for "${args.query}"`);
+  log.info(`Spotify: searching playlists for "${args.query}"`);
   const path = `/search?q=${encodeURIComponent(args.query)}&type=playlist&limit=${limit}`;
   const data = (await spotifyApi("GET", path)) as SpotifySearchResponse;
 
@@ -153,7 +153,7 @@ async function playPlaylist(args: {
   query: string;
   device_id?: string;
 }): Promise<string> {
-  LOG.info(`Spotify: finding and playing playlist "${args.query}"`);
+  log.info(`Spotify: finding and playing playlist "${args.query}"`);
   const path = `/search?q=${encodeURIComponent(args.query)}&type=playlist&limit=1`;
   const data = (await spotifyApi("GET", path)) as SpotifySearchResponse;
 
@@ -173,7 +173,7 @@ async function playPlaylist(args: {
 }
 
 async function createJam(): Promise<string> {
-  LOG.info("Spotify: creating Jam session");
+  log.info("Spotify: creating Jam session");
   await spotifyApi("POST", "/me/player/jam");
   return "Jam session created. Other users can now join your listening session through the Spotify app.";
 }

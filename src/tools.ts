@@ -19,7 +19,7 @@ import { SPOTIFY_TOOLS, handleSpotifyToolCall } from "./spotify.js";
 import { REMINDER_TOOLS, handleReminderToolCall } from "./reminders.js";
 import { UPTIME_TOOL, handleUptimeToolCall } from "./uptime.js";
 import { GITHUB_TOOLS, handleGithubToolCall } from "./github.js";
-import { LOG } from "./logger.js";
+import { log } from "./logger.js";
 
 const NOTE_TOOLS = [
   {
@@ -111,7 +111,7 @@ export async function handleToolCall(
   notesPath: string,
   source?: string,
 ): Promise<string> {
-  LOG.debug(`Handling tool: ${name}`);
+  log.debug(`Handling tool: ${name}`);
 
   if (name === "rewrite_notes") {
     const args = JSON.parse(argsJson) as { content: string };
@@ -189,6 +189,6 @@ export async function handleToolCall(
     return reminderResult;
   }
 
-  LOG.warn(`Unknown tool: ${name}`);
+  log.warn(`Unknown tool: ${name}`);
   return `Error: unknown tool "${name}"`;
 }

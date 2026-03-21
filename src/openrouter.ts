@@ -1,4 +1,4 @@
-import { LOG } from "./logger.js";
+import { log } from "./logger.js";
 
 interface CreditsResponse {
   data: {
@@ -26,7 +26,7 @@ interface ActivityResponse {
 }
 
 async function fetchCredits(): Promise<string> {
-  LOG.info("Fetching OpenRouter credits");
+  log.info("Fetching OpenRouter credits");
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) return "Error: OPENROUTER_API_KEY is not set.";
 
@@ -35,7 +35,7 @@ async function fetchCredits(): Promise<string> {
   });
 
   if (!response.ok) {
-    LOG.warn(
+    log.warn(
       `OpenRouter credits API error: ${response.status} ${response.statusText}`,
     );
     return `Error: OpenRouter credits API returned ${response.status} ${response.statusText}`;
@@ -53,7 +53,7 @@ async function fetchCredits(): Promise<string> {
 }
 
 async function fetchActivity(date?: string): Promise<string> {
-  LOG.info(`Fetching OpenRouter activity${date ? ` for ${date}` : ""}`);
+  log.info(`Fetching OpenRouter activity${date ? ` for ${date}` : ""}`);
   const apiKey = process.env.OPENROUTER_PROVISIONING_KEY;
   if (!apiKey)
     return "Error: OPENROUTER_PROVISIONING_KEY is not set. The activity endpoint requires a provisioning (management) key, not a regular API key.";
@@ -67,7 +67,7 @@ async function fetchActivity(date?: string): Promise<string> {
   });
 
   if (!response.ok) {
-    LOG.warn(
+    log.warn(
       `OpenRouter activity API error: ${response.status} ${response.statusText}`,
     );
     return `Error: OpenRouter activity API returned ${response.status} ${response.statusText}`;

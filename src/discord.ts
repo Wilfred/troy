@@ -17,7 +17,7 @@ import {
   writeConversationLog,
   loadRecentHistory,
 } from "./conversationlog.js";
-import { LOG } from "./logger.js";
+import { log } from "./logger.js";
 import { buildSystemPrompt } from "./systemprompt.js";
 import { DueReminder, startReminderScheduler } from "./reminders.js";
 
@@ -95,7 +95,7 @@ async function untrustedChatLoop(
         name: toolCall.function.name,
         content: toolCall.function.arguments,
       });
-      LOG.info(`Untrusted tool call: ${toolCall.function.name}`);
+      log.info(`Untrusted tool call: ${toolCall.function.name}`);
       const startTime = Date.now();
       try {
         const result = await handleToolCall(
@@ -104,7 +104,7 @@ async function untrustedChatLoop(
           "",
         );
         const duration_ms = Date.now() - startTime;
-        LOG.info(
+        log.info(
           `Untrusted tool completed: ${toolCall.function.name} (${duration_ms}ms)`,
         );
         messages.push({
@@ -121,7 +121,7 @@ async function untrustedChatLoop(
       } catch (err) {
         const duration_ms = Date.now() - startTime;
         const errorMsg = `Error in ${toolCall.function.name}: ${err instanceof Error ? err.message : String(err)}`;
-        LOG.error(
+        log.error(
           `Untrusted tool failed: ${toolCall.function.name} (${duration_ms}ms)`,
         );
         messages.push({
@@ -157,7 +157,7 @@ async function runUntrustedSubagent(
   conversationLog: ConversationEntry[],
   toolsUsed: string[],
 ): Promise<string> {
-  LOG.info("Starting untrusted subagent");
+  log.info("Starting untrusted subagent");
   conversationLog.push({ kind: "response", content: `[subagent] ${prompt}` });
 
   const messages: ChatMessage[] = [
@@ -224,7 +224,7 @@ async function chatLoop(
         name: toolCall.function.name,
         content: JSON.stringify(parsedArgs, null, 2),
       });
-      LOG.info(`Tool call: ${toolCall.function.name}`);
+      log.info(`Tool call: ${toolCall.function.name}`);
 
       if (toolCall.function.name === "delegate_to_untrusted") {
         const args = parsedArgs as { prompt: string };
@@ -247,7 +247,7 @@ async function chatLoop(
           source,
         );
         const duration_ms = Date.now() - startTime;
-        LOG.info(
+        log.info(
           `Tool completed: ${toolCall.function.name} (${duration_ms}ms)`,
         );
         messages.push({
@@ -264,7 +264,7 @@ async function chatLoop(
       } catch (err) {
         const duration_ms = Date.now() - startTime;
         const errorMsg = `Error in ${toolCall.function.name}: ${err instanceof Error ? err.message : String(err)}`;
-        LOG.error(`Tool failed: ${toolCall.function.name} (${duration_ms}ms)`);
+        log.error(`Tool failed: ${toolCall.function.name} (${duration_ms}ms)`);
         messages.push({
           role: "tool",
           toolCallId: toolCall.id,
@@ -314,7 +314,7 @@ async function handleDiscordMessage(
     return;
   }
 
-  LOG.info(`Discord message from user ${discordMsg.author.id}`);
+  log.info(`Discord message from user ${discordMsg.author.id}`);
 
   try {
     const notesPath = join(dataDir, "rules", "NOTES.md");
@@ -378,7 +378,7 @@ async function handleDiscordMessage(
   } catch (err) {
     const stack =
       err instanceof Error ? (err.stack ?? err.message) : String(err);
-    LOG.error(`Error handling Discord message: ${stack}`);
+    log.error(`Error handling Discord message: ${stack}`);
     const errorReply = `Sorry, something went wrong:\n\`\`\`\n${stack}\n\`\`\``;
     const chunks = splitMessage(errorReply);
     for (const chunk of chunks) {
@@ -393,7 +393,7 @@ export async function startDiscordBot(
 ): Promise<Client> {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    LOG.error("OPENROUTER_API_KEY environment variable is not set");
+    log.error("OPENROUTER_API_KEY environment variable is not set");
     process.exit(1);
   }
 
@@ -402,7 +402,7 @@ export async function startDiscordBot(
 
   const rawAllowlist = process.env.DISCORD_ALLOWLIST;
   if (!rawAllowlist) {
-    LOG.warn("DISCORD_ALLOWLIST environment variable is not set");
+    log.warn("DISCORD_ALLOWLIST environment variable is not set");
     process.exit(1);
   }
   const allowlist = new Set(
@@ -428,7 +428,7 @@ export async function startDiscordBot(
   });
 
   client.once(Events.ClientReady, (c) => {
-    LOG.info(`Logged in as ${c.user.tag}`);
+    log.info(`Logged in as ${c.user.tag}`);
 
     startReminderScheduler(dataDir, (reminders: DueReminder[]) => {
       for (const r of reminders) {
@@ -440,7 +440,7 @@ export async function startDiscordBot(
           (channel as { send: (msg: string) => Promise<unknown> })
             .send(`**Reminder:** ${r.message}`)
             .catch((err: unknown) =>
-              LOG.error(
+              log.error(
                 `Failed to send reminder to channel ${channelId}: ${err}`,
               ),
             );
@@ -464,7 +464,7 @@ export async function startDiscordBot(
     } catch (err) {
       const stack =
         err instanceof Error ? (err.stack ?? err.message) : String(err);
-      LOG.error(`Unhandled error in MessageCreate handler: ${stack}`);
+      log.error(`Unhandled error in MessageCreate handler: ${stack}`);
     }
   });
 

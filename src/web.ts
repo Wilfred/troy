@@ -11,7 +11,7 @@ import {
   countConversations,
   ConversationRow,
 } from "./conversationlog.js";
-import { LOG } from "./logger.js";
+import { log } from "./logger.js";
 
 const PAGE_SIZE = 50;
 
@@ -199,7 +199,7 @@ export function startWebServer(dataDir: string, port: number): Server {
     try {
       handleRequest(req, res, dataDir);
     } catch (err) {
-      LOG.error(
+      log.error(
         `Web request error: ${err instanceof Error ? err.message : String(err)}`,
       );
       res.writeHead(500, { "Content-Type": "text/plain" });
@@ -208,7 +208,7 @@ export function startWebServer(dataDir: string, port: number): Server {
   });
 
   server.listen(port, () => {
-    LOG.info(`Web UI listening on http://localhost:${port}`);
+    log.info(`Web UI listening on http://localhost:${port}`);
     console.log(`Troy web UI running at http://localhost:${port}`);
   });
 
