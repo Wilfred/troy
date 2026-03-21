@@ -18,7 +18,7 @@ import { log } from "./logger.js";
 import { buildSystemPrompt } from "./systemprompt.js";
 import { DueReminder, startReminderScheduler } from "./reminders.js";
 
-const DEFAULT_MODEL = "anthropic/claude-sonnet-4.6";
+const DEFAULT_MODEL = "anthropic/claude-sonnet-4-6";
 
 type Message =
   | { role: "system"; content: string }
@@ -418,6 +418,8 @@ async function runAction(opts: {
   //
   // anthropic/claude-sonnet-4.5: OK, not as good as opus, asked
   // follow-up questions.
+  //
+  // anthropic/claude-sonnet-4-6: latest sonnet, lower latency than opus.
   const model = process.env.OPENROUTER_MODEL || DEFAULT_MODEL;
   log.info(`Starting run with model ${model} (trusted mode)`);
 

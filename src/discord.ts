@@ -396,7 +396,7 @@ export async function startDiscordBot(
     process.exit(1);
   }
 
-  const model = process.env.OPENROUTER_MODEL || "anthropic/claude-opus-4.6";
+  const model = process.env.OPENROUTER_MODEL || "anthropic/claude-sonnet-4-6";
   const openrouter = new OpenRouter({ apiKey });
 
   const rawAllowlist = process.env.DISCORD_ALLOWLIST;
