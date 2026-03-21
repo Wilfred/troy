@@ -9,6 +9,7 @@ import {
 } from "discord.js";
 import { OpenRouter } from "@openrouter/sdk";
 import Database from "better-sqlite3";
+import { model as defaultModel } from "./consts.js";
 import { trustedTools, untrustedTools, handleToolCall } from "./tools.js";
 import {
   ConversationEntry,
@@ -396,7 +397,7 @@ export async function startDiscordBot(
     process.exit(1);
   }
 
-  const model = process.env.OPENROUTER_MODEL || "anthropic/claude-sonnet-4-6";
+  const model = defaultModel;
   const openrouter = new OpenRouter({ apiKey });
 
   const rawAllowlist = process.env.DISCORD_ALLOWLIST;
