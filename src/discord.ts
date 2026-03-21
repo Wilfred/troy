@@ -389,7 +389,7 @@ async function handleDiscordMessage(
 export async function startDiscordBot(
   token: string,
   dataDir: string,
-): Promise<void> {
+): Promise<Client> {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     log.error("OPENROUTER_API_KEY environment variable is not set");
@@ -468,4 +468,6 @@ export async function startDiscordBot(
   });
 
   await client.login(token);
+
+  return client;
 }

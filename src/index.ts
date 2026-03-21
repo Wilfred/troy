@@ -490,12 +490,22 @@ async function discordAction(opts: {
 
   const dataDir = getDataDir(opts.dataDir);
 
-  if (opts.webPort !== "0") {
-    startWebServer(dataDir, parseInt(opts.webPort ?? "3000"));
-  }
+  const webServer =
+    opts.webPort !== "0"
+      ? startWebServer(dataDir, parseInt(opts.webPort ?? "3000"))
+      : undefined;
 
   log.info("Starting Discord bot");
-  await startDiscordBot(token, dataDir);
+  const client = await startDiscordBot(token, dataDir);
+
+  const shutdown = (): void => {
+    log.info("Shutting down Discord bot");
+    client.destroy();
+    webServer?.close();
+  };
+
+  process.on("SIGTERM", shutdown);
+  process.on("SIGINT", shutdown);
 }
 
 async function main(): Promise<void> {
