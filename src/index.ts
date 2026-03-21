@@ -17,7 +17,7 @@ import {
 import { log } from "./logger.js";
 import { buildSystemPrompt } from "./systemprompt.js";
 import { DueReminder, startReminderScheduler } from "./reminders.js";
-import { DEFAULT_MODEL, model as defaultModel } from "./consts.js";
+import { model as defaultModel } from "./consts.js";
 
 type Message =
   | { role: "system"; content: string }
@@ -523,7 +523,7 @@ async function main(): Promise<void> {
       `
 Environment variables:
   OPENROUTER_API_KEY       API key for OpenRouter (required)
-  OPENROUTER_MODEL         Model to use (default: ${DEFAULT_MODEL})`,
+  OPENROUTER_MODEL         Model to use (default: ${defaultModel})`,
     )
     .action(runAction);
 
@@ -544,7 +544,7 @@ Environment variables:
 Environment variables:
   DISCORD_BOT_TOKEN        Discord bot token (required)
   OPENROUTER_API_KEY       API key for OpenRouter (required)
-  OPENROUTER_MODEL         Model to use (default: ${DEFAULT_MODEL})
+  OPENROUTER_MODEL         Model to use (default: ${defaultModel})
   DISCORD_ALLOWLIST        Comma-separated Discord user IDs allowed to use the bot (required)`,
     )
     .action(discordAction);
