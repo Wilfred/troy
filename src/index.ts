@@ -17,7 +17,7 @@ import {
 import { log } from "./logger.js";
 import { buildSystemPrompt } from "./systemprompt.js";
 import { DueReminder, startReminderScheduler } from "./reminders.js";
-import { model as defaultModel } from "./consts.js";
+import { MODEL as defaultModel } from "./consts.js";
 
 type Message =
   | { role: "system"; content: string }

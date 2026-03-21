@@ -9,7 +9,7 @@ import {
 } from "discord.js";
 import { OpenRouter } from "@openrouter/sdk";
 import Database from "better-sqlite3";
-import { model as defaultModel } from "./consts.js";
+import { MODEL as defaultModel } from "./consts.js";
 import { trustedTools, untrustedTools, handleToolCall } from "./tools.js";
 import {
   ConversationEntry,
