@@ -5,7 +5,7 @@ import { createInterface } from "node:readline/promises";
 import { stdin as processStdin, stdout as processStdout } from "node:process";
 import { Command } from "commander";
 import { OpenRouter } from "@openrouter/sdk";
-import { trustedTools, untrustedTools, handleToolCall } from "./tools.js";
+import { TRUSTED_TOOLS, UNTRUSTED_TOOLS, handleToolCall } from "./tools.js";
 import { startDiscordBot } from "./discord.js";
 import { startWebServer } from "./web.js";
 import {
@@ -14,7 +14,7 @@ import {
   writeConversationLog,
   loadRecentHistory,
 } from "./conversationlog.js";
-import { log } from "./logger.js";
+import { LOG } from "./logger.js";
 import { buildSystemPrompt } from "./systemprompt.js";
 import { DueReminder, startReminderScheduler } from "./reminders.js";
 import { MODEL } from "./consts.js";
@@ -51,14 +51,14 @@ async function untrustedChat(
     chatGenerationParams: {
       model,
       messages,
-      tools: untrustedTools,
+      tools: UNTRUSTED_TOOLS,
     },
   });
 
   const choice = completion.choices?.[0];
   const msg = choice?.message;
   if (!msg) {
-    log.error("No response from untrusted subagent");
+    LOG.error("No response from untrusted subagent");
     return "Error: no response from subagent.";
   }
 
@@ -76,7 +76,7 @@ async function untrustedChat(
         name: toolCall.function.name,
         content: toolCall.function.arguments,
       });
-      log.info(`Untrusted tool call: ${toolCall.function.name}`);
+      LOG.info(`Untrusted tool call: ${toolCall.function.name}`);
       const startTime = Date.now();
       try {
         const result = await handleToolCall(
@@ -85,7 +85,7 @@ async function untrustedChat(
           "",
         );
         const duration_ms = Date.now() - startTime;
-        log.info(
+        LOG.info(
           `Untrusted tool completed: ${toolCall.function.name} (${duration_ms}ms)`,
         );
         messages.push({
@@ -102,7 +102,7 @@ async function untrustedChat(
       } catch (err) {
         const duration_ms = Date.now() - startTime;
         const errorMsg = `Error in ${toolCall.function.name}: ${err instanceof Error ? err.message : String(err)}`;
-        log.error(
+        LOG.error(
           `Untrusted tool failed: ${toolCall.function.name} (${duration_ms}ms)`,
         );
         messages.push({
@@ -132,7 +132,7 @@ async function runUntrustedSubagent(
   conversationLog: ConversationEntry[],
   toolsUsed: string[],
 ): Promise<string> {
-  log.info("Starting untrusted subagent");
+  LOG.info("Starting untrusted subagent");
   conversationLog.push({ kind: "response", content: `[subagent] ${prompt}` });
 
   const messages: Message[] = [
@@ -161,14 +161,14 @@ async function chat(
     chatGenerationParams: {
       model,
       messages,
-      tools: trustedTools,
+      tools: TRUSTED_TOOLS,
     },
   });
 
   const choice = completion.choices?.[0];
   const msg = choice?.message;
   if (!msg) {
-    log.error("No response from model");
+    LOG.error("No response from model");
     process.exit(1);
   }
 
@@ -201,7 +201,7 @@ async function chat(
         name: toolCall.function.name,
         content: JSON.stringify(parsedArgs, null, 2),
       });
-      log.info(`Trusted tool call: ${toolCall.function.name}`);
+      LOG.info(`Trusted tool call: ${toolCall.function.name}`);
 
       if (toolCall.function.name === "delegate_to_untrusted") {
         const args = parsedArgs as { prompt: string };
@@ -224,7 +224,7 @@ async function chat(
           source,
         );
         const duration_ms = Date.now() - startTime;
-        log.info(
+        LOG.info(
           `Trusted tool completed: ${toolCall.function.name} (${duration_ms}ms)`,
         );
         messages.push({
@@ -241,7 +241,7 @@ async function chat(
       } catch (err) {
         const duration_ms = Date.now() - startTime;
         const errorMsg = `Error in ${toolCall.function.name}: ${err instanceof Error ? err.message : String(err)}`;
-        log.error(
+        LOG.error(
           `Trusted tool failed: ${toolCall.function.name} (${duration_ms}ms)`,
         );
         messages.push({
@@ -289,12 +289,12 @@ async function replAction(opts: {
 
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    log.error("OPENROUTER_API_KEY environment variable is not set");
+    LOG.error("OPENROUTER_API_KEY environment variable is not set");
     process.exit(1);
   }
 
   const model = MODEL;
-  log.info(`Starting REPL with model ${model}`);
+  LOG.info(`Starting REPL with model ${model}`);
 
   const client = new OpenRouter({ apiKey });
   const notesPath = join(dataDir, "rules", "NOTES.md");
@@ -364,13 +364,13 @@ async function replAction(opts: {
         conversationLog,
       );
     } catch (err) {
-      log.error(`Error: ${err instanceof Error ? err.message : String(err)}`);
+      LOG.error(`Error: ${err instanceof Error ? err.message : String(err)}`);
       messages.pop();
       continue;
     }
 
     if (!content) {
-      log.error("No response content from model");
+      LOG.error("No response content from model");
       continue;
     }
 
@@ -378,7 +378,7 @@ async function replAction(opts: {
     messages.push({ role: "assistant", content });
 
     const chatId = writeConversationLog(db, conversationLog);
-    log.info(`Saved exchange as C${chatId}`);
+    LOG.info(`Saved exchange as C${chatId}`);
 
     processStdout.write(`\n${content}\n\n`);
   }
@@ -404,7 +404,7 @@ async function runAction(opts: {
 
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    log.error("OPENROUTER_API_KEY environment variable is not set");
+    LOG.error("OPENROUTER_API_KEY environment variable is not set");
     process.exit(1);
   }
 
@@ -420,7 +420,7 @@ async function runAction(opts: {
   //
   // anthropic/claude-sonnet-4-6: latest sonnet, lower latency than opus.
   const model = MODEL;
-  log.info(`Starting run with model ${model} (trusted mode)`);
+  LOG.info(`Starting run with model ${model} (trusted mode)`);
 
   const client = new OpenRouter({ apiKey });
   const notesPath = join(dataDir, "rules", "NOTES.md");
@@ -445,7 +445,7 @@ async function runAction(opts: {
   const conversationLog: ConversationEntry[] = [
     { kind: "prompt", content: opts.prompt },
   ];
-  log.info("Starting trusted agent");
+  LOG.info("Starting trusted agent");
   const content = await chat(
     client,
     model,
@@ -457,7 +457,7 @@ async function runAction(opts: {
   );
 
   if (!content) {
-    log.error("No response content from model");
+    LOG.error("No response content from model");
     process.exit(1);
   }
 
@@ -475,7 +475,7 @@ async function runAction(opts: {
           ? `, ${toolsUsed[0]}, ${toolsUsed[1]}`
           : `, ${toolsUsed[toolCount - 1]} and ${toolCount - 1} others`;
   const suffix = `[C${chatId}${toolSummary}]`;
-  log.info(`Completed C${chatId} with ${toolCount} tool use(s)`);
+  LOG.info(`Completed C${chatId} with ${toolCount} tool use(s)`);
   console.log(`${content} ${suffix}`);
 }
 
@@ -485,7 +485,7 @@ async function discordAction(opts: {
 }): Promise<void> {
   const token = process.env.DISCORD_BOT_TOKEN;
   if (!token) {
-    log.error("DISCORD_BOT_TOKEN environment variable is not set");
+    LOG.error("DISCORD_BOT_TOKEN environment variable is not set");
     process.exit(1);
   }
 
@@ -496,11 +496,11 @@ async function discordAction(opts: {
       ? startWebServer(dataDir, parseInt(opts.webPort ?? "3000"))
       : undefined;
 
-  log.info("Starting Discord bot");
+  LOG.info("Starting Discord bot");
   const client = await startDiscordBot(token, dataDir);
 
   const shutdown = (): void => {
-    log.info("Shutting down Discord bot");
+    LOG.info("Shutting down Discord bot");
     client.destroy();
     webServer?.close();
   };

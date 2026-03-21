@@ -1,4 +1,4 @@
-import { log } from "./logger.js";
+import { LOG } from "./logger.js";
 
 interface CreditsResponse {
   data: {
@@ -26,7 +26,7 @@ interface ActivityResponse {
 }
 
 async function fetchCredits(): Promise<string> {
-  log.info("Fetching OpenRouter credits");
+  LOG.info("Fetching OpenRouter credits");
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) return "Error: OPENROUTER_API_KEY is not set.";
 
@@ -35,7 +35,7 @@ async function fetchCredits(): Promise<string> {
   });
 
   if (!response.ok) {
-    log.warn(
+    LOG.warn(
       `OpenRouter credits API error: ${response.status} ${response.statusText}`,
     );
     return `Error: OpenRouter credits API returned ${response.status} ${response.statusText}`;
@@ -53,7 +53,7 @@ async function fetchCredits(): Promise<string> {
 }
 
 async function fetchActivity(date?: string): Promise<string> {
-  log.info(`Fetching OpenRouter activity${date ? ` for ${date}` : ""}`);
+  LOG.info(`Fetching OpenRouter activity${date ? ` for ${date}` : ""}`);
   const apiKey = process.env.OPENROUTER_PROVISIONING_KEY;
   if (!apiKey)
     return "Error: OPENROUTER_PROVISIONING_KEY is not set. The activity endpoint requires a provisioning (management) key, not a regular API key.";
@@ -67,7 +67,7 @@ async function fetchActivity(date?: string): Promise<string> {
   });
 
   if (!response.ok) {
-    log.warn(
+    LOG.warn(
       `OpenRouter activity API error: ${response.status} ${response.statusText}`,
     );
     return `Error: OpenRouter activity API returned ${response.status} ${response.statusText}`;
@@ -118,7 +118,7 @@ async function fetchActivity(date?: string): Promise<string> {
   return result;
 }
 
-export const openrouterBalanceTool = {
+export const OPENROUTER_BALANCE_TOOL = {
   type: "function" as const,
   function: {
     name: "openrouter_balance",
@@ -132,7 +132,7 @@ export const openrouterBalanceTool = {
   },
 };
 
-export const openrouterUsageTool = {
+export const OPENROUTER_USAGE_TOOL = {
   type: "function" as const,
   function: {
     name: "openrouter_usage",

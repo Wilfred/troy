@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import Database from "better-sqlite3";
-import { log } from "./logger.js";
+import { LOG } from "./logger.js";
 
 interface ReminderRow {
   id: number;
@@ -76,7 +76,7 @@ export function startReminderScheduler(
         onDue(due);
       }
     } catch (err) {
-      log.error(
+      LOG.error(
         `Reminder scheduler error: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
@@ -87,7 +87,7 @@ export function startReminderScheduler(
   return timer;
 }
 
-export const reminderTools = [
+export const REMINDER_TOOLS = [
   {
     type: "function" as const,
     function: {
@@ -166,7 +166,7 @@ function handleSetReminder(
     .run(args.message, remindAt.toISOString(), source);
   db.close();
 
-  log.info(
+  LOG.info(
     `Created reminder #${result.lastInsertRowid} for ${remindAt.toISOString()}`,
   );
   return `Reminder #${result.lastInsertRowid} set for ${remindAt.toISOString()}: "${args.message}"`;
@@ -202,7 +202,7 @@ function handleDeleteReminder(dataDir: string, argsJson: string): string {
     return `No reminder found with ID #${args.id}.`;
   }
 
-  log.info(`Deleted reminder #${args.id}`);
+  LOG.info(`Deleted reminder #${args.id}`);
   return `Reminder #${args.id} deleted.`;
 }
 

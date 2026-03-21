@@ -1,4 +1,4 @@
-import { log } from "./logger.js";
+import { LOG } from "./logger.js";
 
 interface GeocodingResult {
   results?: Array<{
@@ -88,10 +88,10 @@ async function geocodeLocation(location: string): Promise<{
 }
 
 async function fetchWeather(location: string): Promise<string> {
-  log.info(`Fetching weather for: ${location}`);
+  LOG.info(`Fetching weather for: ${location}`);
   const geo = await geocodeLocation(location);
   if (!geo) {
-    log.warn(`Geocoding failed for: ${location}`);
+    LOG.warn(`Geocoding failed for: ${location}`);
     return `Could not find location: ${location}`;
   }
 
@@ -126,7 +126,7 @@ async function fetchWeather(location: string): Promise<string> {
   return result;
 }
 
-export const weatherTool = {
+export const WEATHER_TOOL = {
   type: "function" as const,
   function: {
     name: "get_weather",

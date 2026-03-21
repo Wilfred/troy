@@ -1,9 +1,9 @@
 import { createLogger, format, transports } from "winston";
 
-const level = (process.env.LOG_LEVEL ?? "info").toLowerCase();
+const LEVEL = (process.env.LOG_LEVEL ?? "info").toLowerCase();
 
-export const log = createLogger({
-  level,
+export const LOG = createLogger({
+  level: LEVEL,
   format: format.combine(
     format.timestamp(),
     format.colorize(),
