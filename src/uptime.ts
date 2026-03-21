@@ -27,10 +27,6 @@ function getMachineBootTime(): Date {
   return new Date(Date.now() - uptimeSeconds * 1000);
 }
 
-function isValidDate(d: Date): boolean {
-  return !isNaN(d.getTime());
-}
-
 function getCommitFromFile(): {
   date: Date;
   message: string;
@@ -42,11 +38,9 @@ function getCommitFromFile(): {
       date: string;
       message: string;
     };
-    const date = new Date(data.date);
-    if (!isValidDate(date)) return null;
     return {
       hash: data.hash.slice(0, 12),
-      date,
+      date: new Date(data.date),
       message: data.message,
     };
   } catch {
@@ -64,11 +58,9 @@ function getCommitFromGit(): {
       encoding: "utf-8",
     }).trim();
     const [hash, dateStr, ...messageParts] = output.split("\n");
-    const date = new Date(dateStr);
-    if (!isValidDate(date)) return null;
     return {
       hash: hash.slice(0, 12),
-      date,
+      date: new Date(dateStr),
       message: messageParts.join("\n"),
     };
   } catch {

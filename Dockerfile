@@ -14,7 +14,10 @@ WORKDIR /app
 ARG COMMIT_HASH=""
 ARG COMMIT_DATE=""
 ARG COMMIT_MESSAGE=""
-RUN printf '{"hash":"%s","date":"%s","message":"%s"}\n' "$COMMIT_HASH" "$COMMIT_DATE" "$COMMIT_MESSAGE" > commit-info.json
+RUN if [ -n "$COMMIT_HASH" ]; then \
+      node -e "process.stdout.write(JSON.stringify({hash:process.argv[1],date:process.argv[2],message:process.argv[3]}))" \
+        "$COMMIT_HASH" "$COMMIT_DATE" "$COMMIT_MESSAGE" > commit-info.json; \
+    fi
 
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
