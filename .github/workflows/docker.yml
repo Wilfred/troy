@@ -36,6 +36,13 @@ jobs:
             type=sha
             type=raw,value=latest,enable={{is_default_branch}}
 
+      - name: Get commit info
+        id: commit
+        run: |
+          echo "hash=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "date=$(git log -1 --format=%aI)" >> "$GITHUB_OUTPUT"
+          echo "message=$(git log -1 --format=%s)" >> "$GITHUB_OUTPUT"
+
       - uses: docker/build-push-action@v6
         with:
           context: .
@@ -44,3 +51,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            COMMIT_HASH=${{ steps.commit.outputs.hash }}
+            COMMIT_DATE=${{ steps.commit.outputs.date }}
+            COMMIT_MESSAGE=${{ steps.commit.outputs.message }}
