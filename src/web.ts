@@ -1,4 +1,9 @@
-import { createServer, IncomingMessage, ServerResponse } from "node:http";
+import {
+  createServer,
+  IncomingMessage,
+  Server,
+  ServerResponse,
+} from "node:http";
 import {
   openDb,
   listConversations,
@@ -178,7 +183,7 @@ function handleRequest(
   db.close();
 }
 
-export function startWebServer(dataDir: string, port: number): void {
+export function startWebServer(dataDir: string, port: number): Server {
   const server = createServer((req, res) => {
     try {
       handleRequest(req, res, dataDir);
@@ -195,4 +200,6 @@ export function startWebServer(dataDir: string, port: number): void {
     log.info(`Web UI listening on http://localhost:${port}`);
     console.log(`Troy web UI running at http://localhost:${port}`);
   });
+
+  return server;
 }
