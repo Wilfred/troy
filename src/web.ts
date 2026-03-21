@@ -49,7 +49,7 @@ function layoutHtml(title: string, body: string): string {
   tr:last-child td { border-bottom: none; }
   tr:hover td { background: #f9fafb; }
   .id-col { width: 5rem; font-weight: 600; }
-  .source-col { width: 7rem; }
+  .date-col { width: 10rem; color: #6b7280; font-size: 0.85rem; white-space: nowrap; }
   .prompt-col { max-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .pagination { display: flex; gap: 0.5rem; margin-top: 1rem; justify-content: center; }
   .pagination a, .pagination span { padding: 0.5rem 1rem; border-radius: 4px; text-decoration: none; font-size: 0.9rem; }
@@ -74,6 +74,16 @@ ${body}
 </html>`;
 }
 
+function formatDate(iso: string): string {
+  const d = new Date(iso + "Z");
+  if (isNaN(d.getTime())) return escapeHtml(iso);
+  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  const hours = String(d.getUTCHours()).padStart(2, "0");
+  const minutes = String(d.getUTCMinutes()).padStart(2, "0");
+  return `${d.getUTCFullYear()}-${month}-${day} ${hours}:${minutes}`;
+}
+
 function sourceBadge(source: string): string {
   if (source.startsWith("discord:")) {
     return `<span class="badge badge-discord">discord</span>`;
@@ -92,7 +102,7 @@ function renderListPage(
   for (const c of conversations) {
     rows += `<tr>
   <td class="id-col"><a href="/conversation/${c.id}">C${c.id}</a></td>
-  <td class="source-col">${sourceBadge(c.source)}</td>
+  <td class="date-col">${formatDate(c.created_at)}</td>
   <td class="prompt-col">${escapeHtml(truncate(c.prompt, 120))}</td>
 </tr>\n`;
   }
@@ -113,7 +123,7 @@ function renderListPage(
   const body = `
 <h1><a href="/">Troy Conversations</a></h1>
 <table>
-  <thead><tr><th>ID</th><th>Source</th><th>Prompt</th></tr></thead>
+  <thead><tr><th>ID</th><th>Date</th><th>Prompt</th></tr></thead>
   <tbody>${rows || "<tr><td colspan='3'>No conversations yet.</td></tr>"}</tbody>
 </table>
 ${pagination}`;
@@ -129,6 +139,7 @@ function renderDetailPage(c: ConversationRow): string {
   <div class="detail-meta">
     <div><strong>ID:</strong> C${c.id}</div>
     <div><strong>Source:</strong> ${sourceBadge(c.source)}</div>
+    <div><strong>Date:</strong> ${formatDate(c.created_at)}</div>
   </div>
   <div class="detail-content">${escapeHtml(c.content)}</div>
 </div>`;

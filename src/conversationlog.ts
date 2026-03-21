@@ -43,9 +43,19 @@ export function openDb(logDir: string): Database.Database {
       source TEXT NOT NULL DEFAULT 'cli',
       prompt   TEXT NOT NULL,
       response TEXT NOT NULL,
-      content  TEXT NOT NULL
+      content  TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
     )
   `);
+  // Migration: add created_at to tables created before this column existed.
+  const cols = db.prepare("PRAGMA table_info(conversations)").all() as Array<{
+    name: string;
+  }>;
+  if (!cols.some((c) => c.name === "created_at")) {
+    db.exec(
+      "ALTER TABLE conversations ADD COLUMN created_at TEXT NOT NULL DEFAULT (datetime('now'))",
+    );
+  }
   return db;
 }
 
@@ -74,6 +84,7 @@ export type ConversationRow = {
   prompt: string;
   response: string;
   content: string;
+  created_at: string;
 };
 
 export function listConversations(
@@ -83,7 +94,7 @@ export function listConversations(
 ): ConversationRow[] {
   return db
     .prepare(
-      "SELECT id, source, prompt, response, content FROM conversations ORDER BY id DESC LIMIT ? OFFSET ?",
+      "SELECT id, source, prompt, response, content, created_at FROM conversations ORDER BY id DESC LIMIT ? OFFSET ?",
     )
     .all(limit, offset) as ConversationRow[];
 }
@@ -94,7 +105,7 @@ export function getConversation(
 ): ConversationRow | undefined {
   return db
     .prepare(
-      "SELECT id, source, prompt, response, content FROM conversations WHERE id = ?",
+      "SELECT id, source, prompt, response, content, created_at FROM conversations WHERE id = ?",
     )
     .get(id) as ConversationRow | undefined;
 }
