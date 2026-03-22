@@ -52,8 +52,9 @@ export function openDb(logDir: string): Database.Database {
     name: string;
   }>;
   if (!cols.some((c) => c.name === "created_at")) {
+    db.exec("ALTER TABLE conversations ADD COLUMN created_at TEXT DEFAULT ''");
     db.exec(
-      "ALTER TABLE conversations ADD COLUMN created_at TEXT NOT NULL DEFAULT (datetime('now'))",
+      "UPDATE conversations SET created_at = datetime('now') WHERE created_at = ''",
     );
   }
   return db;
