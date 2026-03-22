@@ -163,10 +163,16 @@ function handleRequest(
   res: ServerResponse,
   dataDir: string,
 ): void {
-  const db = openDb(dataDir);
   const parsed = parseUrl(req.url ?? "/");
   const pathname = parsed.pathname;
 
+  if (pathname === "/healthz") {
+    res.writeHead(200, { "Content-Type": "text/plain" });
+    res.end("ok");
+    return;
+  }
+
+  const db = openDb(dataDir);
   const conversationMatch = /^\/conversation\/(\d+)$/.exec(pathname);
 
   if (pathname === "/" || pathname === "") {
