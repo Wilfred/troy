@@ -122,12 +122,50 @@ export function loadRecentHistory(
   db: Database.Database,
   source?: string,
 ): Exchange[] {
-  const rows = db
+  // Always include the 2 most recent exchanges.
+  const recentRows = db
     .prepare(
-      "SELECT prompt, response FROM conversations WHERE source = ? ORDER BY id DESC LIMIT 2",
+      "SELECT id, prompt, response FROM conversations WHERE source = ? ORDER BY id DESC LIMIT 2",
     )
-    .all(source ?? "cli") as Array<{ prompt: string; response: string }>;
-  return rows
-    .reverse()
-    .map((row) => ({ user: row.prompt, assistant: row.response }));
+    .all(source ?? "cli") as Array<{
+    id: number;
+    prompt: string;
+    response: string;
+  }>;
+
+  // Also include all exchanges from the last hour.
+  const lastHourRows = db
+    .prepare(
+      "SELECT id, prompt, response FROM conversations WHERE source = ? AND created_at >= datetime('now', '-1 hour') ORDER BY id ASC",
+    )
+    .all(source ?? "cli") as Array<{
+    id: number;
+    prompt: string;
+    response: string;
+  }>;
+
+  // Merge and deduplicate by id, keeping chronological order.
+  const seen = new Set<number>();
+  const merged: Array<{ id: number; prompt: string; response: string }> = [];
+
+  // Add last-hour rows first (already in ASC order).
+  for (const row of lastHourRows) {
+    if (!seen.has(row.id)) {
+      seen.add(row.id);
+      merged.push(row);
+    }
+  }
+
+  // Add recent rows that weren't already included (reverse to get ASC order).
+  for (const row of recentRows.reverse()) {
+    if (!seen.has(row.id)) {
+      seen.add(row.id);
+      merged.push(row);
+    }
+  }
+
+  // Sort by id to ensure chronological order.
+  merged.sort((a, b) => a.id - b.id);
+
+  return merged.map((row) => ({ user: row.prompt, assistant: row.response }));
 }
