@@ -64,6 +64,12 @@ function layoutHtml(title: string, body: string): string {
   .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; }
   .badge-cli { background: #dbeafe; color: #1e40af; }
   .badge-discord { background: #ede9fe; color: #5b21b6; }
+  .badge-tool { background: #d1fae5; color: #065f46; }
+  .badge-no-tools { background: #f3f4f6; color: #6b7280; }
+  .tools-col { width: 14rem; }
+  .tools-col .badge { margin: 0.1rem 0.15rem; }
+  .detail-tools { margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; }
+  .detail-tools strong { color: #1a1a1a; }
 </style>
 </head>
 <body>
@@ -82,6 +88,27 @@ function formatDate(iso: string): string {
   const hours = String(d.getUTCHours()).padStart(2, "0");
   const minutes = String(d.getUTCMinutes()).padStart(2, "0");
   return `${d.getUTCFullYear()}-${month}-${day} ${hours}:${minutes}`;
+}
+
+function extractToolNames(content: string): string[] {
+  const seen = new Set<string>();
+  const re = /^Tool Input name=(.+):$/gm;
+  let match: RegExpExecArray | null = re.exec(content);
+  while (match !== null) {
+    seen.add(match[1]);
+    match = re.exec(content);
+  }
+  return [...seen];
+}
+
+function toolBadges(content: string): string {
+  const tools = extractToolNames(content);
+  if (tools.length === 0) {
+    return `<span class="badge badge-no-tools">No tools invoked</span>`;
+  }
+  return tools
+    .map((t) => `<span class="badge badge-tool">${escapeHtml(t)}</span>`)
+    .join(" ");
 }
 
 function sourceBadge(source: string): string {
@@ -141,6 +168,7 @@ function renderDetailPage(c: ConversationRow): string {
     <div><strong>Source:</strong> ${sourceBadge(c.source)}</div>
     <div><strong>Date:</strong> ${formatDate(c.created_at)}</div>
   </div>
+  <div class="detail-tools"><strong>Tools:</strong> ${toolBadges(c.content)}</div>
   <div class="detail-content">${escapeHtml(c.content)}</div>
 </div>`;
 
