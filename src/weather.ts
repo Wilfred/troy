@@ -126,7 +126,7 @@ async function fetchWeather(location: string): Promise<string> {
   return result;
 }
 
-export const weatherTool = {
+export const WEATHER_TOOL = {
   type: "function" as const,
   function: {
     name: "get_weather",

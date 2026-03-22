@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { log } from "./logger.js";
 
-const processStartTime = new Date();
+const PROCESS_START_TIME = new Date();
 
 function formatRelative(ms: number): string {
   const seconds = Math.floor(ms / 1000);
@@ -80,10 +80,10 @@ export function handleUptimeToolCall(): string {
   log.info("Fetching uptime info");
 
   const now = Date.now();
-  const processUptimeMs = now - processStartTime.getTime();
+  const processUptimeMs = now - PROCESS_START_TIME.getTime();
 
   let result = "## Process Uptime\n";
-  result += `- Started: ${formatAbsolute(processStartTime)}\n`;
+  result += `- Started: ${formatAbsolute(PROCESS_START_TIME)}\n`;
   result += `- Uptime: ${formatRelative(processUptimeMs)}\n`;
 
   try {
@@ -111,7 +111,7 @@ export function handleUptimeToolCall(): string {
   return result;
 }
 
-export const uptimeTool = {
+export const UPTIME_TOOL = {
   type: "function" as const,
   function: {
     name: "get_uptime",

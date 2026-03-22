@@ -10,7 +10,7 @@ import {
 import { OpenRouter } from "@openrouter/sdk";
 import Database from "better-sqlite3";
 import { MODEL } from "./consts.js";
-import { trustedTools, untrustedTools, handleToolCall } from "./tools.js";
+import { TRUSTED_TOOLS, UNTRUSTED_TOOLS, handleToolCall } from "./tools.js";
 import {
   ConversationEntry,
   openDb,
@@ -71,7 +71,7 @@ async function untrustedChatLoop(
     chatGenerationParams: {
       model,
       messages,
-      tools: untrustedTools,
+      tools: UNTRUSTED_TOOLS,
     },
   });
 
@@ -186,7 +186,7 @@ async function chatLoop(
     chatGenerationParams: {
       model,
       messages,
-      tools: trustedTools,
+      tools: TRUSTED_TOOLS,
     },
   });
 

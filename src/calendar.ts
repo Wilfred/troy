@@ -225,7 +225,7 @@ async function deleteCalendarEvent(args: {
   return `Event ${args.event_id} deleted successfully.`;
 }
 
-export const calendarTools = [
+export const CALENDAR_TOOLS = [
   {
     type: "function" as const,
     function: {

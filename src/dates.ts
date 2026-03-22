@@ -140,7 +140,7 @@ export function computeDateRange(args: {
   return { start: fmtDate(todayLocal), end: fmtDate(addDays(todayLocal, 6)) };
 }
 
-export const dateRangeTool = {
+export const DATE_RANGE_TOOL = {
   type: "function" as const,
   function: {
     name: "compute_date_range",

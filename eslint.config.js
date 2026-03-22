@@ -8,6 +8,14 @@ export default tseslint.config(
   {
     rules: {
       "@typescript-eslint/explicit-function-return-type": "error",
+      "@typescript-eslint/naming-convention": [
+        "error",
+        {
+          selector: "variable",
+          modifiers: ["const", "global"],
+          format: ["UPPER_CASE"],
+        },
+      ],
       "init-declarations": ["error", "always"],
       "no-restricted-syntax": [
         "error",

@@ -155,7 +155,7 @@ async function getIssueComments(
   return output.trimEnd();
 }
 
-export const githubTools = [
+export const GITHUB_TOOLS = [
   {
     type: "function" as const,
     function: {

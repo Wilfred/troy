@@ -5,7 +5,7 @@ import { createInterface } from "node:readline/promises";
 import { stdin as processStdin, stdout as processStdout } from "node:process";
 import { Command } from "commander";
 import { OpenRouter } from "@openrouter/sdk";
-import { trustedTools, untrustedTools, handleToolCall } from "./tools.js";
+import { TRUSTED_TOOLS, UNTRUSTED_TOOLS, handleToolCall } from "./tools.js";
 import { startDiscordBot } from "./discord.js";
 import { startWebServer } from "./web.js";
 import {
@@ -51,7 +51,7 @@ async function untrustedChat(
     chatGenerationParams: {
       model,
       messages,
-      tools: untrustedTools,
+      tools: UNTRUSTED_TOOLS,
     },
   });
 
@@ -161,7 +161,7 @@ async function chat(
     chatGenerationParams: {
       model,
       messages,
-      tools: trustedTools,
+      tools: TRUSTED_TOOLS,
     },
   });
 

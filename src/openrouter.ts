@@ -118,7 +118,7 @@ async function fetchActivity(date?: string): Promise<string> {
   return result;
 }
 
-export const openrouterBalanceTool = {
+export const OPENROUTER_BALANCE_TOOL = {
   type: "function" as const,
   function: {
     name: "openrouter_balance",
@@ -132,7 +132,7 @@ export const openrouterBalanceTool = {
   },
 };
 
-export const openrouterUsageTool = {
+export const OPENROUTER_USAGE_TOOL = {
   type: "function" as const,
   function: {
     name: "openrouter_usage",

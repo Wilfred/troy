@@ -1,27 +1,27 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { weatherTool, handleWeatherToolCall } from "./weather.js";
-import { calendarTools, handleCalendarToolCall } from "./calendar.js";
+import { WEATHER_TOOL, handleWeatherToolCall } from "./weather.js";
+import { CALENDAR_TOOLS, handleCalendarToolCall } from "./calendar.js";
 import {
-  searchTool,
+  SEARCH_TOOL,
   handleSearchToolCall,
-  fetchTool,
+  FETCH_TOOL,
   handleFetchToolCall,
 } from "./search.js";
-import { dateRangeTool, handleDateRangeToolCall } from "./dates.js";
+import { DATE_RANGE_TOOL, handleDateRangeToolCall } from "./dates.js";
 import {
-  openrouterBalanceTool,
-  openrouterUsageTool,
+  OPENROUTER_BALANCE_TOOL,
+  OPENROUTER_USAGE_TOOL,
   handleOpenrouterBalanceToolCall,
   handleOpenrouterUsageToolCall,
 } from "./openrouter.js";
-import { spotifyTools, handleSpotifyToolCall } from "./spotify.js";
-import { reminderTools, handleReminderToolCall } from "./reminders.js";
-import { uptimeTool, handleUptimeToolCall } from "./uptime.js";
-import { githubTools, handleGithubToolCall } from "./github.js";
+import { SPOTIFY_TOOLS, handleSpotifyToolCall } from "./spotify.js";
+import { REMINDER_TOOLS, handleReminderToolCall } from "./reminders.js";
+import { UPTIME_TOOL, handleUptimeToolCall } from "./uptime.js";
+import { GITHUB_TOOLS, handleGithubToolCall } from "./github.js";
 import { log } from "./logger.js";
 
-const noteTools = [
+const NOTE_TOOLS = [
   {
     type: "function" as const,
     function: {
@@ -65,7 +65,7 @@ const noteTools = [
   },
 ];
 
-const delegateToUntrustedTool = {
+const DELEGATE_TO_UNTRUSTED_TOOL = {
   type: "function" as const,
   function: {
     name: "delegate_to_untrusted",
@@ -85,24 +85,24 @@ const delegateToUntrustedTool = {
   },
 };
 
-export const trustedTools = [
-  ...noteTools,
-  weatherTool,
-  ...calendarTools,
-  dateRangeTool,
-  openrouterBalanceTool,
-  openrouterUsageTool,
-  ...spotifyTools,
-  ...reminderTools,
-  uptimeTool,
-  delegateToUntrustedTool,
+export const TRUSTED_TOOLS = [
+  ...NOTE_TOOLS,
+  WEATHER_TOOL,
+  ...CALENDAR_TOOLS,
+  DATE_RANGE_TOOL,
+  OPENROUTER_BALANCE_TOOL,
+  OPENROUTER_USAGE_TOOL,
+  ...SPOTIFY_TOOLS,
+  ...REMINDER_TOOLS,
+  UPTIME_TOOL,
+  DELEGATE_TO_UNTRUSTED_TOOL,
 ];
 
-export const untrustedTools = [
-  weatherTool,
-  searchTool,
-  fetchTool,
-  ...githubTools,
+export const UNTRUSTED_TOOLS = [
+  WEATHER_TOOL,
+  SEARCH_TOOL,
+  FETCH_TOOL,
+  ...GITHUB_TOOLS,
 ];
 
 export async function handleToolCall(

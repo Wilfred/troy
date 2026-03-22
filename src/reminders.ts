@@ -87,7 +87,7 @@ export function startReminderScheduler(
   return timer;
 }
 
-export const reminderTools = [
+export const REMINDER_TOOLS = [
   {
     type: "function" as const,
     function: {

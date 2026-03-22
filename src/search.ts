@@ -48,7 +48,7 @@ async function searchWeb(query: string): Promise<string> {
   return output.trimEnd();
 }
 
-export const searchTool = {
+export const SEARCH_TOOL = {
   type: "function" as const,
   function: {
     name: "web_search",
@@ -102,7 +102,7 @@ async function fetchPage(url: string): Promise<string> {
   return text;
 }
 
-export const fetchTool = {
+export const FETCH_TOOL = {
   type: "function" as const,
   function: {
     name: "web_fetch",

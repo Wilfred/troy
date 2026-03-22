@@ -178,7 +178,7 @@ async function createJam(): Promise<string> {
   return "Jam session created. Other users can now join your listening session through the Spotify app.";
 }
 
-export const spotifyTools = [
+export const SPOTIFY_TOOLS = [
   {
     type: "function" as const,
     function: {
