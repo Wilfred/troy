@@ -130,7 +130,6 @@ function renderListPage(
     rows += `<tr>
   <td class="id-col"><a href="/conversation/${c.id}">C${c.id}</a></td>
   <td class="date-col">${formatDate(c.created_at)}</td>
-  <td class="tools-col">${toolBadges(c.content)}</td>
   <td class="prompt-col">${escapeHtml(truncate(c.prompt, 120))}</td>
 </tr>\n`;
   }
@@ -151,8 +150,8 @@ function renderListPage(
   const body = `
 <h1><a href="/">Troy Conversations</a></h1>
 <table>
-  <thead><tr><th>ID</th><th>Date</th><th>Tools</th><th>Prompt</th></tr></thead>
-  <tbody>${rows || "<tr><td colspan='4'>No conversations yet.</td></tr>"}</tbody>
+  <thead><tr><th>ID</th><th>Date</th><th>Prompt</th></tr></thead>
+  <tbody>${rows || "<tr><td colspan='3'>No conversations yet.</td></tr>"}</tbody>
 </table>
 ${pagination}`;
 
