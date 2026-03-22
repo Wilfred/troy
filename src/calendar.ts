@@ -231,7 +231,7 @@ export const CALENDAR_TOOLS = [
     function: {
       name: "list_calendar_events",
       description:
-        "List events from the user's Google Calendar. Use this when the user asks about their schedule, upcoming events, or calendar.",
+        "List events from the user's Google Calendar. Use this when the user asks about their schedule, events, calendar, trips, travel, appointments, meetings, or any time-based activities — including past events. For questions about past events (e.g. 'when was my last trip to NYC?'), set time_min to a date well in the past and time_max to now.",
       parameters: {
         type: "object",
         properties: {
