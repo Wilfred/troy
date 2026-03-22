@@ -93,9 +93,10 @@ function formatDate(iso: string): string {
 function extractToolNames(content: string): string[] {
   const seen = new Set<string>();
   const re = /^Tool Input name=(.+):$/gm;
-  let match;
-  while ((match = re.exec(content)) !== null) {
+  let match: RegExpExecArray | null = re.exec(content);
+  while (match !== null) {
     seen.add(match[1]);
+    match = re.exec(content);
   }
   return [...seen];
 }
