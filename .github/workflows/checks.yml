@@ -65,3 +65,17 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run format:check
+
+  typos:
+    name: Typos
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: crate-ci/typos@v1.29.5
+
+  actionlint:
+    name: Action lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: raven-actions/actionlint@v2

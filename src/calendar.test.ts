@@ -30,7 +30,7 @@ describe("formatDateWithDay", () => {
     );
   });
 
-  it("returns an unparseable string unchanged", () => {
+  it("returns an unparsable string unchanged", () => {
     assert.equal(formatDateWithDay("Unknown"), "Unknown");
   });
 });
