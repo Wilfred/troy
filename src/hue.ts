@@ -1,44 +1,96 @@
 import { log } from "./logger.js";
 
-function getConfig(): { bridgeIp: string; appKey: string } {
-  const bridgeIp = process.env.HUE_BRIDGE_IP;
-  const appKey = process.env.HUE_APPLICATION_KEY;
-  if (!bridgeIp || !appKey) {
-    throw new Error(
-      "Hue requires HUE_BRIDGE_IP and HUE_APPLICATION_KEY environment variables.",
-    );
-  }
-  return { bridgeIp, appKey };
+interface LocalConfig {
+  mode: "local";
+  bridgeIp: string;
+  appKey: string;
 }
 
-async function hueApi(
-  method: string,
-  path: string,
-  body?: Record<string, unknown>,
-): Promise<unknown> {
-  const { bridgeIp, appKey } = getConfig();
-  const url = `https://${bridgeIp}/clip/v2/resource${path}`;
-  log.debug(`Hue API ${method} ${path}`);
+interface RemoteConfig {
+  mode: "remote";
+  clientId: string;
+  clientSecret: string;
+  refreshToken: string;
+}
 
+type HueConfig = LocalConfig | RemoteConfig;
+
+function getConfig(): HueConfig {
+  const bridgeIp = process.env.HUE_BRIDGE_IP;
+  const appKey = process.env.HUE_APPLICATION_KEY;
+  if (bridgeIp && appKey) {
+    return { mode: "local", bridgeIp, appKey };
+  }
+
+  const clientId = process.env.HUE_REMOTE_CLIENT_ID;
+  const clientSecret = process.env.HUE_REMOTE_CLIENT_SECRET;
+  const refreshToken = process.env.HUE_REMOTE_REFRESH_TOKEN;
+  if (clientId && clientSecret && refreshToken) {
+    return { mode: "remote", clientId, clientSecret, refreshToken };
+  }
+
+  throw new Error(
+    "Hue requires either HUE_BRIDGE_IP + HUE_APPLICATION_KEY (local) " +
+      "or HUE_REMOTE_CLIENT_ID + HUE_REMOTE_CLIENT_SECRET + HUE_REMOTE_REFRESH_TOKEN (cloud).",
+  );
+}
+
+let cachedToken: { value: string; expiresAt: number } | null = null;
+
+async function getRemoteAccessToken(config: RemoteConfig): Promise<string> {
+  if (cachedToken && Date.now() < cachedToken.expiresAt) {
+    return cachedToken.value;
+  }
+
+  log.debug("Refreshing Hue remote access token");
+  const response = await fetch("https://api.meethue.com/v2/oauth2/token", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Basic ${Buffer.from(`${config.clientId}:${config.clientSecret}`).toString("base64")}`,
+    },
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: config.refreshToken,
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(
+      `Failed to refresh Hue remote token: ${response.status} ${text}`,
+    );
+  }
+
+  const data = (await response.json()) as {
+    access_token: string;
+    expires_in: number;
+  };
+  cachedToken = {
+    value: data.access_token,
+    expiresAt: Date.now() + (data.expires_in - 60) * 1000,
+  };
+  return data.access_token;
+}
+
+async function hueApiLocal(
+  config: LocalConfig,
+  method: string,
+  url: string,
+  body?: Record<string, unknown>,
+): Promise<Response> {
   // Hue bridge uses a self-signed certificate
   const prevTls = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
   try {
-    const response = await fetch(url, {
+    return await fetch(url, {
       method,
       headers: {
-        "hue-application-key": appKey,
+        "hue-application-key": config.appKey,
         ...(body ? { "Content-Type": "application/json" } : {}),
       },
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
-
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`Hue API error: ${response.status} ${text}`);
-    }
-
-    return (await response.json()) as unknown;
   } finally {
     if (prevTls === undefined) {
       delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
@@ -46,6 +98,50 @@ async function hueApi(
       process.env.NODE_TLS_REJECT_UNAUTHORIZED = prevTls;
     }
   }
+}
+
+async function hueApiRemote(
+  config: RemoteConfig,
+  method: string,
+  url: string,
+  body?: Record<string, unknown>,
+): Promise<Response> {
+  const token = await getRemoteAccessToken(config);
+  return await fetch(url, {
+    method,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(body ? { "Content-Type": "application/json" } : {}),
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+}
+
+async function hueApi(
+  method: string,
+  path: string,
+  body?: Record<string, unknown>,
+): Promise<unknown> {
+  const config = getConfig();
+  log.debug(`Hue API ${method} ${path} (${config.mode})`);
+
+  const baseUrl =
+    config.mode === "local"
+      ? `https://${config.bridgeIp}/clip/v2/resource`
+      : "https://api.meethue.com/route/clip/v2/resource";
+  const url = `${baseUrl}${path}`;
+
+  const response =
+    config.mode === "local"
+      ? await hueApiLocal(config, method, url, body)
+      : await hueApiRemote(config, method, url, body);
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Hue API error: ${response.status} ${text}`);
+  }
+
+  return (await response.json()) as unknown;
 }
 
 interface HueLight {
