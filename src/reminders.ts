@@ -104,7 +104,10 @@ export const REMINDER_TOOLS = [
           remind_at: {
             type: "string",
             description:
-              "When to deliver the reminder, as an ISO 8601 datetime string (e.g. '2025-03-15T14:30:00')",
+              "When to deliver the reminder, as an ISO 8601 datetime string (e.g. '2025-03-15T14:30:00'). " +
+              "When the user gives an ambiguous time like 'at 9' without specifying AM/PM, " +
+              "choose the next upcoming occurrence — if it is currently past 9am, use 9pm (21:00) today; " +
+              "if it is before 9am, use 9am today. Use 24-hour format.",
           },
         },
         required: ["message", "remind_at"],
