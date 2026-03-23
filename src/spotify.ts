@@ -82,9 +82,19 @@ interface SpotifyPlaylistItem {
   description?: string;
 }
 
+interface SpotifyArtistItem {
+  name: string;
+  uri: string;
+  genres?: string[];
+  followers?: { total?: number };
+}
+
 interface SpotifySearchResponse {
   playlists?: {
     items?: SpotifyPlaylistItem[];
+  };
+  artists?: {
+    items?: SpotifyArtistItem[];
   };
 }
 
@@ -170,6 +180,56 @@ async function playPlaylist(args: {
     context_uri: playlist.uri,
   });
   return `Now playing playlist: ${playlist.name} (${playlist.uri})`;
+}
+
+async function searchArtists(args: {
+  query: string;
+  limit?: number;
+}): Promise<string> {
+  const limit = args.limit ?? 5;
+  log.info(`Spotify: searching artists for "${args.query}"`);
+  const path = `/search?q=${encodeURIComponent(args.query)}&type=artist&limit=${limit}`;
+  const data = (await spotifyApi("GET", path)) as SpotifySearchResponse;
+
+  const items = data.artists?.items;
+  if (!items || items.length === 0) {
+    return `No artists found for: ${args.query}`;
+  }
+
+  let result = `Found ${items.length} artist(s) for "${args.query}":\n\n`;
+  for (const item of items) {
+    result += `Name: ${item.name}\n`;
+    result += `URI: ${item.uri}\n`;
+    if (item.genres && item.genres.length > 0)
+      result += `Genres: ${item.genres.join(", ")}\n`;
+    if (item.followers?.total !== undefined)
+      result += `Followers: ${item.followers.total.toLocaleString()}\n`;
+    result += "\n";
+  }
+  return result.trimEnd();
+}
+
+async function playArtist(args: {
+  query: string;
+  device_id?: string;
+}): Promise<string> {
+  log.info(`Spotify: finding and playing artist "${args.query}"`);
+  const path = `/search?q=${encodeURIComponent(args.query)}&type=artist&limit=1`;
+  const data = (await spotifyApi("GET", path)) as SpotifySearchResponse;
+
+  const items = data.artists?.items;
+  if (!items || items.length === 0) {
+    return `No artists found for: ${args.query}`;
+  }
+
+  const artist = items[0];
+  const params = args.device_id
+    ? `?device_id=${encodeURIComponent(args.device_id)}`
+    : "";
+  await spotifyApi("PUT", `/me/player/play${params}`, {
+    context_uri: artist.uri,
+  });
+  return `Now playing artist: ${artist.name} (${artist.uri})`;
 }
 
 async function createJam(): Promise<string> {
@@ -268,6 +328,51 @@ export const SPOTIFY_TOOLS = [
   {
     type: "function" as const,
     function: {
+      name: "spotify_search_artists",
+      description:
+        "Search Spotify for artists by name. Use this when the user wants to find an artist.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "The search query for finding artists.",
+          },
+          limit: {
+            type: "number",
+            description:
+              "Maximum number of artists to return (default: 5, max: 50).",
+          },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "spotify_play_artist",
+      description:
+        "Search for an artist by name and immediately start playing their music. Use this when the user wants to play music by a specific artist.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "The artist name to find and play.",
+          },
+          device_id: {
+            type: "string",
+            description: "Optional device ID to play on.",
+          },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
       name: "spotify_create_jam",
       description:
         "Create a Spotify Jam session so others can listen along. Use this when the user wants to start a shared listening session. Requires active playback.",
@@ -311,6 +416,22 @@ export async function handleSpotifyToolCall(
       device_id?: string;
     };
     return await playPlaylist(args);
+  }
+
+  if (name === "spotify_search_artists") {
+    const args = JSON.parse(argsJson) as {
+      query: string;
+      limit?: number;
+    };
+    return await searchArtists(args);
+  }
+
+  if (name === "spotify_play_artist") {
+    const args = JSON.parse(argsJson) as {
+      query: string;
+      device_id?: string;
+    };
+    return await playArtist(args);
   }
 
   if (name === "spotify_create_jam") {
