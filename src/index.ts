@@ -18,6 +18,7 @@ import { log } from "./logger.js";
 import { buildSystemPrompt } from "./systemprompt.js";
 import { DueReminder, startReminderScheduler } from "./reminders.js";
 import { MODEL } from "./consts.js";
+import { reflectOnNotes } from "./notereflect.js";
 
 type Message =
   | { role: "system"; content: string }
@@ -381,6 +382,13 @@ async function replAction(opts: {
     log.info(`Saved exchange as C${chatId}`);
 
     processStdout.write(`\n${content}\n\n`);
+
+    reflectOnNotes(client, model, notesPath, trimmed, content).catch(
+      (err: unknown) =>
+        log.warn(
+          `Note reflection error: ${err instanceof Error ? err.message : String(err)}`,
+        ),
+    );
   }
 
   rl.close();
@@ -464,6 +472,8 @@ async function runAction(opts: {
   conversationLog.push({ kind: "response", content });
 
   const chatId = writeConversationLog(db, conversationLog);
+
+  await reflectOnNotes(client, model, notesPath, opts.prompt, content);
 
   const uniqueTools = [...new Set([...toolsUsed].reverse())].reverse();
   const toolCount = uniqueTools.length;
