@@ -355,7 +355,7 @@ async function handleDiscordMessage(
 
     const chatId = writeConversationLog(db, conversationLog, source);
 
-    const uniqueTools = [...new Set(toolsUsed)];
+    const uniqueTools = [...new Set([...toolsUsed].reverse())].reverse();
     const toolCount = uniqueTools.length;
     const toolSummary =
       toolCount === 0
