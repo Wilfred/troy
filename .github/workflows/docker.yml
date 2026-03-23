@@ -39,9 +39,11 @@ jobs:
       - name: Get commit info
         id: commit
         run: |
-          echo "hash=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-          echo "date=$(git log -1 --format=%aI)" >> "$GITHUB_OUTPUT"
-          echo "message=$(git log -1 --format=%s)" >> "$GITHUB_OUTPUT"
+          {
+            echo "hash=$(git rev-parse HEAD)"
+            echo "date=$(git log -1 --format=%aI)"
+            echo "message=$(git log -1 --format=%s)"
+          } >> "$GITHUB_OUTPUT"
 
       - uses: docker/build-push-action@v7
         with:
