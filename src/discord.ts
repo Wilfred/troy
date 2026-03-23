@@ -355,15 +355,16 @@ async function handleDiscordMessage(
 
     const chatId = writeConversationLog(db, conversationLog, source);
 
-    const toolCount = toolsUsed.length;
+    const uniqueTools = [...new Set(toolsUsed)];
+    const toolCount = uniqueTools.length;
     const toolSummary =
       toolCount === 0
         ? ""
         : toolCount === 1
-          ? `, ${toolsUsed[toolCount - 1]}`
+          ? `, ${uniqueTools[toolCount - 1]}`
           : toolCount === 2
-            ? `, ${toolsUsed[0]}, ${toolsUsed[1]}`
-            : `, ${toolsUsed[toolCount - 1]} and ${toolCount - 1} others`;
+            ? `, ${uniqueTools[0]}, ${uniqueTools[1]}`
+            : `, ${uniqueTools[toolCount - 1]} and ${toolCount - 1} others`;
     const webUrl = process.env.TROY_WEB_URL;
     const cLabel = webUrl
       ? `[C${chatId}](${webUrl.replace(/\/+$/, "")}/conversation/${chatId})`

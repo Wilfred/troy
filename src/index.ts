@@ -465,15 +465,16 @@ async function runAction(opts: {
 
   const chatId = writeConversationLog(db, conversationLog);
 
-  const toolCount = toolsUsed.length;
+  const uniqueTools = [...new Set(toolsUsed)];
+  const toolCount = uniqueTools.length;
   const toolSummary =
     toolCount === 0
       ? ""
       : toolCount === 1
-        ? `, ${toolsUsed[toolCount - 1]}`
+        ? `, ${uniqueTools[toolCount - 1]}`
         : toolCount === 2
-          ? `, ${toolsUsed[0]}, ${toolsUsed[1]}`
-          : `, ${toolsUsed[toolCount - 1]} and ${toolCount - 1} others`;
+          ? `, ${uniqueTools[0]}, ${uniqueTools[1]}`
+          : `, ${uniqueTools[toolCount - 1]} and ${toolCount - 1} others`;
   const suffix = `[C${chatId}${toolSummary}]`;
   log.info(`Completed C${chatId} with ${toolCount} tool use(s)`);
   console.log(`${content} ${suffix}`);
