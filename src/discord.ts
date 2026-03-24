@@ -316,6 +316,10 @@ async function handleDiscordMessage(
 
   log.info(`Discord message from user ${discordMsg.author.id}`);
 
+  await discordMsg.react("🤔").catch((err: unknown) => {
+    log.warn(`Failed to add thinking reaction: ${err}`);
+  });
+
   try {
     const notesPath = join(dataDir, "rules", "NOTES.md");
     const source = `discord:${discordMsg.channelId}`;
@@ -372,6 +376,12 @@ async function handleDiscordMessage(
     const suffix = `[${cLabel}${toolSummary}]`;
     const fullResponse = `${content} ${suffix}`;
 
+    await discordMsg.reactions.cache
+      .get("🤔")
+      ?.users.remove(discordMsg.client.user!.id)
+      .catch(() => {});
+    await discordMsg.react("✅").catch(() => {});
+
     const chunks = splitMessage(fullResponse);
     for (const chunk of chunks) {
       await discordMsg.reply(chunk);
@@ -380,6 +390,12 @@ async function handleDiscordMessage(
     const stack =
       err instanceof Error ? (err.stack ?? err.message) : String(err);
     log.error(`Error handling Discord message: ${stack}`);
+    await discordMsg.reactions.cache
+      .get("🤔")
+      ?.users.remove(discordMsg.client.user!.id)
+      .catch(() => {});
+    await discordMsg.react("❌").catch(() => {});
+
     const errorReply = `Sorry, something went wrong:\n\`\`\`\n${stack}\n\`\`\``;
     const chunks = splitMessage(errorReply);
     for (const chunk of chunks) {
@@ -424,6 +440,7 @@ export async function startDiscordBot(
       GatewayIntentBits.GuildMessages,
       GatewayIntentBits.DirectMessages,
       GatewayIntentBits.MessageContent,
+      GatewayIntentBits.GuildMessageReactions,
     ],
     partials: [Partials.Channel],
   });
