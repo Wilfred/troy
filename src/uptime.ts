@@ -27,28 +27,7 @@ function getMachineBootTime(): Date {
   return new Date(Date.now() - uptimeSeconds * 1000);
 }
 
-function getCommitFromFile(): {
-  date: Date;
-  message: string;
-  hash: string;
-} | null {
-  try {
-    const data = JSON.parse(readFileSync("commit-info.json", "utf-8")) as {
-      hash: string;
-      date: string;
-      message: string;
-    };
-    return {
-      hash: data.hash.slice(0, 12),
-      date: new Date(data.date),
-      message: data.message,
-    };
-  } catch {
-    return null;
-  }
-}
-
-function getCommitFromGit(): {
+function getLatestCommit(): {
   date: Date;
   message: string;
   hash: string;
@@ -66,14 +45,6 @@ function getCommitFromGit(): {
   } catch {
     return null;
   }
-}
-
-function getLatestCommit(): {
-  date: Date;
-  message: string;
-  hash: string;
-} | null {
-  return getCommitFromFile() ?? getCommitFromGit();
 }
 
 export function handleUptimeToolCall(): string {
