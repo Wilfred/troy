@@ -139,13 +139,15 @@ async function untrustedChatLoop(
       }
     }
 
-    return untrustedChatLoop(
+    const prefix = msg.content ? (msg.content as string) : "";
+    const rest = await untrustedChatLoop(
       client,
       model,
       messages,
       conversationLog,
       toolsUsed,
     );
+    return prefix && rest ? `${prefix}\n\n${rest}` : prefix || rest;
   }
 
   return (msg.content as string) || "";
@@ -284,7 +286,8 @@ async function chatLoop(
       return delegateResult;
     }
 
-    return chatLoop(
+    const prefix = msg.content ? (msg.content as string) : "";
+    const rest = await chatLoop(
       client,
       model,
       messages,
@@ -294,6 +297,7 @@ async function chatLoop(
       conversationLog,
       source,
     );
+    return prefix && rest ? `${prefix}\n\n${rest}` : prefix || rest;
   }
 
   return (msg.content as string) || "";
