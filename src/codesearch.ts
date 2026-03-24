@@ -23,7 +23,7 @@ function searchSourceCode(pattern: string, filenameFilter?: string): string {
 
   let regex: RegExp = /(?:)/;
   try {
-    regex = new RegExp(pattern);
+    regex = new RegExp(pattern, "i");
   } catch {
     return `Error: invalid regex pattern "${pattern}"`;
   }
