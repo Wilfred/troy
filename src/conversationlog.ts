@@ -3,6 +3,8 @@ import { join } from "node:path";
 import Database from "better-sqlite3";
 
 export type ConversationEntry =
+  | { kind: "system"; content: string }
+  | { kind: "history"; role: "user" | "assistant"; content: string }
   | { kind: "prompt"; content: string }
   | { kind: "response"; content: string }
   | { kind: "tool_input"; name: string; content: string }
@@ -19,6 +21,10 @@ function indentBlock(text: string): string {
 
 function formatEntry(entry: ConversationEntry): string {
   switch (entry.kind) {
+    case "system":
+      return `System:\n${indentBlock(entry.content)}`;
+    case "history":
+      return `History ${entry.role}:\n${indentBlock(entry.content)}`;
     case "prompt":
       return `Prompt:\n${indentBlock(entry.content)}`;
     case "response":
@@ -28,6 +34,24 @@ function formatEntry(entry: ConversationEntry): string {
     case "tool_output":
       return `Tool Output name=${entry.name} duration=${entry.duration_ms}ms:\n${indentBlock(entry.content)}`;
   }
+}
+
+export function buildContextEntries(
+  systemPrompt: string,
+  history: Exchange[],
+): ConversationEntry[] {
+  const entries: ConversationEntry[] = [
+    { kind: "system", content: systemPrompt },
+  ];
+  for (const exchange of history) {
+    entries.push({ kind: "history", role: "user", content: exchange.user });
+    entries.push({
+      kind: "history",
+      role: "assistant",
+      content: exchange.assistant,
+    });
+  }
+  return entries;
 }
 
 export function formatConversationLog(entries: ConversationEntry[]): string {
