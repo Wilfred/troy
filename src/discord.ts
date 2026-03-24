@@ -378,16 +378,16 @@ async function handleDiscordMessage(
     const suffix = `[${cLabel}${toolSummary}]`;
     const fullResponse = `${content} ${suffix}`;
 
+    const chunks = splitMessage(fullResponse);
+    for (const chunk of chunks) {
+      await discordMsg.reply(chunk);
+    }
+
     await discordMsg.reactions.cache
       .get("🤔")
       ?.users.remove(discordMsg.client.user!.id)
       .catch(() => {});
     await discordMsg.react("✅").catch(() => {});
-
-    const chunks = splitMessage(fullResponse);
-    for (const chunk of chunks) {
-      await discordMsg.reply(chunk);
-    }
   } catch (err) {
     const stack =
       err instanceof Error ? (err.stack ?? err.message) : String(err);
