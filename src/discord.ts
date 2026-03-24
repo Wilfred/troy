@@ -16,6 +16,7 @@ import {
   openDb,
   writeConversationLog,
   loadRecentHistory,
+  buildContextEntries,
 } from "./conversationlog.js";
 import { log } from "./logger.js";
 import { buildSystemPrompt } from "./systemprompt.js";
@@ -336,6 +337,7 @@ async function handleDiscordMessage(
     const toolsUsed: string[] = [];
     const toolInputs: Array<{ name: string; args: unknown }> = [];
     const conversationLog: ConversationEntry[] = [
+      ...buildContextEntries(systemPrompt, history),
       { kind: "prompt", content: prompt },
     ];
 

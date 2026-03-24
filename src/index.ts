@@ -13,6 +13,7 @@ import {
   openDb,
   writeConversationLog,
   loadRecentHistory,
+  buildContextEntries,
 } from "./conversationlog.js";
 import { log } from "./logger.js";
 import { buildSystemPrompt } from "./systemprompt.js";
@@ -345,9 +346,11 @@ async function replAction(opts: {
 
     // Re-read rules (including NOTES.md) on every prompt so that
     // updates made by tools or external edits take effect immediately.
-    messages[0] = { role: "system", content: buildSystemPrompt(dataDir) };
+    const systemPrompt = buildSystemPrompt(dataDir);
+    messages[0] = { role: "system", content: systemPrompt };
 
     const conversationLog: ConversationEntry[] = [
+      ...buildContextEntries(systemPrompt, history),
       { kind: "prompt", content: trimmed },
     ];
     messages.push({ role: "user", content: trimmed });
@@ -428,10 +431,11 @@ async function runAction(opts: {
   const db = openDb(dataDir);
   const history = loadRecentHistory(db);
 
+  const systemPrompt = buildSystemPrompt(dataDir, opts.prompt);
   const messages: Message[] = [
     {
       role: "system",
-      content: buildSystemPrompt(dataDir, opts.prompt),
+      content: systemPrompt,
     },
   ];
   for (const exchange of history) {
@@ -443,6 +447,7 @@ async function runAction(opts: {
   const toolsUsed: string[] = [];
   const toolInputs: Array<{ name: string; args: unknown }> = [];
   const conversationLog: ConversationEntry[] = [
+    ...buildContextEntries(systemPrompt, history),
     { kind: "prompt", content: opts.prompt },
   ];
   log.info("Starting trusted agent");
