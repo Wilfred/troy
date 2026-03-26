@@ -18,6 +18,7 @@ import {
 import { SPOTIFY_TOOLS, handleSpotifyToolCall } from "./spotify.js";
 import { REMINDER_TOOLS, handleReminderToolCall } from "./reminders.js";
 import { UPTIME_TOOL, handleUptimeToolCall } from "./uptime.js";
+import { ENV_VARS_TOOL, handleEnvVarsToolCall } from "./env.js";
 import { GITHUB_TOOLS, handleGithubToolCall } from "./github.js";
 import { CODE_SEARCH_TOOL, handleCodeSearchToolCall } from "./codesearch.js";
 import { log } from "./logger.js";
@@ -96,6 +97,7 @@ export const TRUSTED_TOOLS = [
   ...SPOTIFY_TOOLS,
   ...REMINDER_TOOLS,
   UPTIME_TOOL,
+  ENV_VARS_TOOL,
   CODE_SEARCH_TOOL,
   DELEGATE_TO_UNTRUSTED_TOOL,
 ];
@@ -159,6 +161,10 @@ export async function handleToolCall(
 
   if (name === "get_uptime") {
     return handleUptimeToolCall();
+  }
+
+  if (name === "list_env_vars") {
+    return handleEnvVarsToolCall();
   }
 
   if (name === "openrouter_usage") {
