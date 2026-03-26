@@ -14,6 +14,7 @@ import {
   countConversations,
   ConversationRow,
 } from "./conversationlog.js";
+import { listPendingReminders } from "./reminders.js";
 import { log } from "./logger.js";
 
 const STYLE_CSS = readFileSync(
@@ -121,6 +122,7 @@ function renderListPage(
   }
 
   const body = `
+<nav class="nav-bar"><a href="/">Conversations</a> <a href="/reminders">Reminders</a></nav>
 <h1><a href="/">Troy Conversations</a></h1>
 <table>
   <thead><tr><th>ID</th><th>Date</th><th>Prompt</th></tr></thead>
@@ -133,6 +135,7 @@ ${pagination}`;
 
 function renderDetailPage(c: ConversationRow): string {
   const body = `
+<nav class="nav-bar"><a href="/">Conversations</a> <a href="/reminders">Reminders</a></nav>
 <a class="back-link" href="/">&larr; All conversations</a>
 <h1>Conversation C${c.id}</h1>
 <div class="detail-card">
@@ -146,6 +149,31 @@ function renderDetailPage(c: ConversationRow): string {
 </div>`;
 
   return layoutHtml(`C${c.id} – Troy`, body);
+}
+
+function renderRemindersPage(dataDir: string): string {
+  const reminders = listPendingReminders(dataDir);
+
+  let rows = "";
+  for (const r of reminders) {
+    rows += `<tr>
+  <td class="id-col">#${r.id}</td>
+  <td class="date-col">${formatDate(r.remind_at)}</td>
+  <td class="reminder-msg-col">${escapeHtml(r.message)}</td>
+  <td class="source-col">${sourceBadge(r.source)}</td>
+  <td class="date-col">${formatDate(r.created_at)}</td>
+</tr>\n`;
+  }
+
+  const body = `
+<nav class="nav-bar"><a href="/">Conversations</a> <a href="/reminders">Reminders</a></nav>
+<h1>Pending Reminders</h1>
+<table>
+  <thead><tr><th>ID</th><th>Due</th><th>Message</th><th>Source</th><th>Created</th></tr></thead>
+  <tbody>${rows || "<tr><td colspan='5'>No pending reminders.</td></tr>"}</tbody>
+</table>`;
+
+  return layoutHtml("Pending Reminders – Troy", body);
 }
 
 function render404(): string {
@@ -179,6 +207,13 @@ function handleRequest(
   if (pathname === "/style.css") {
     res.writeHead(200, { "Content-Type": "text/css; charset=utf-8" });
     res.end(STYLE_CSS);
+    db.close();
+    return;
+  }
+
+  if (pathname === "/reminders") {
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    res.end(renderRemindersPage(dataDir));
     db.close();
     return;
   }

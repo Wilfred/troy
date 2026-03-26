@@ -209,6 +209,25 @@ function handleDeleteReminder(dataDir: string, argsJson: string): string {
   return `Reminder #${args.id} deleted.`;
 }
 
+interface PendingReminder {
+  id: number;
+  message: string;
+  remind_at: string;
+  created_at: string;
+  source: string;
+}
+
+export function listPendingReminders(dataDir: string): PendingReminder[] {
+  const db = openRemindersDb(dataDir);
+  const rows = db
+    .prepare(
+      "SELECT id, message, remind_at, created_at, source FROM reminders WHERE delivered = 0 ORDER BY remind_at",
+    )
+    .all() as PendingReminder[];
+  db.close();
+  return rows;
+}
+
 export function handleReminderToolCall(
   name: string,
   argsJson: string,
