@@ -306,7 +306,7 @@ async function handleDiscordMessage(
   dataDir: string,
   db: Database.Database,
 ): Promise<void> {
-  const prompt = discordMsg.content.replace(/<@!?\d+>/g, "").trim();
+  const prompt = discordMsg.content.replace(/<@[!&]?\d+>/g, "").trim();
 
   if (!prompt) return;
 
