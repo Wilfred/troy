@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { openDb } from "./conversationlog.js";
 import { WEATHER_TOOL, handleWeatherToolCall } from "./weather.js";
 import { CALENDAR_TOOLS, handleCalendarToolCall } from "./calendar.js";
 import {
@@ -20,6 +21,7 @@ import { REMINDER_TOOLS, handleReminderToolCall } from "./reminders.js";
 import { UPTIME_TOOL, handleUptimeToolCall } from "./uptime.js";
 import { GITHUB_TOOLS, handleGithubToolCall } from "./github.js";
 import { CODE_SEARCH_TOOL, handleCodeSearchToolCall } from "./codesearch.js";
+import { SEARCH_HISTORY_TOOL, handleSearchHistoryToolCall } from "./history.js";
 import { log } from "./logger.js";
 
 const NOTE_TOOLS = [
@@ -97,6 +99,7 @@ export const TRUSTED_TOOLS = [
   ...REMINDER_TOOLS,
   UPTIME_TOOL,
   CODE_SEARCH_TOOL,
+  SEARCH_HISTORY_TOOL,
   DELEGATE_TO_UNTRUSTED_TOOL,
 ];
 
@@ -167,6 +170,16 @@ export async function handleToolCall(
 
   if (name === "search_source_code") {
     return handleCodeSearchToolCall(argsJson);
+  }
+
+  if (name === "search_conversation_history") {
+    const dataDir = notesPath ? join(dirname(dirname(notesPath))) : "";
+    const db = openDb(dataDir);
+    try {
+      return handleSearchHistoryToolCall(argsJson, db);
+    } finally {
+      db.close();
+    }
   }
 
   const calendarResult = await handleCalendarToolCall(name, argsJson);
