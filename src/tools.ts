@@ -20,6 +20,7 @@ import { REMINDER_TOOLS, handleReminderToolCall } from "./reminders.js";
 import { UPTIME_TOOL, handleUptimeToolCall } from "./uptime.js";
 import { GITHUB_TOOLS, handleGithubToolCall } from "./github.js";
 import { CODE_SEARCH_TOOL, handleCodeSearchToolCall } from "./codesearch.js";
+import { REDDIT_TOOL, handleRedditToolCall } from "./reddit.js";
 import { log } from "./logger.js";
 
 const NOTE_TOOLS = [
@@ -103,6 +104,7 @@ export const UNTRUSTED_TOOLS = [
   WEATHER_TOOL,
   SEARCH_TOOL,
   FETCH_TOOL,
+  REDDIT_TOOL,
   ...GITHUB_TOOLS,
   ...SPOTIFY_TOOLS,
 ];
@@ -167,6 +169,10 @@ export async function handleToolCall(
 
   if (name === "search_source_code") {
     return handleCodeSearchToolCall(argsJson);
+  }
+
+  if (name === "reddit_search") {
+    return await handleRedditToolCall(argsJson);
   }
 
   const calendarResult = await handleCalendarToolCall(name, argsJson);
