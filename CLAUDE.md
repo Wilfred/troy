@@ -20,7 +20,9 @@ npm run lint           # ESLint
 npm run format         # Prettier (write)
 npm run format:check   # Prettier (check only)
 npm test               # Compile and run tests (node --test)
-npm start              # Run compiled CLI (node dist/index.js)
+npm start              # Run the CLI (REPL, or pass -- -p <prompt>)
+npm run discord        # Run as a Discord bot
+npm run web            # Start the web UI
 ```
 
 CI runs typecheck, lint, and format:check on Node 22.
@@ -40,10 +42,11 @@ Run `npx knip` before committing to check for unused exports and dependencies.
 - `src/conversationlog.ts` — Conversation logging utilities
 - `src/logger.ts` — Structured logging via winston
 
-**CLI commands** (via Commander.js):
+**CLI subcommands** (via Commander.js, exposed as npm scripts):
 
-- `troy run -p <prompt>` — Send a prompt to the model
-- `troy discord` — Run as a Discord bot
+- `run` — Send a prompt (`-p <prompt>`) or start a REPL
+- `discord` — Run as a Discord bot
+- `web` — Start the web UI
 
 ## Code Conventions
 
