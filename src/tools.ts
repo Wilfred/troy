@@ -93,7 +93,6 @@ export const TRUSTED_TOOLS = [
   DATE_RANGE_TOOL,
   OPENROUTER_BALANCE_TOOL,
   OPENROUTER_USAGE_TOOL,
-  ...SPOTIFY_TOOLS,
   ...REMINDER_TOOLS,
   UPTIME_TOOL,
   CODE_SEARCH_TOOL,
@@ -105,6 +104,7 @@ export const UNTRUSTED_TOOLS = [
   SEARCH_TOOL,
   FETCH_TOOL,
   ...GITHUB_TOOLS,
+  ...SPOTIFY_TOOLS,
 ];
 
 export async function handleToolCall(
