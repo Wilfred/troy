@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "build": "tsc && cp -r src/public dist/public",
-    "start": "tsx src/index.ts",
+    "start": "tsx src/index.ts run",
+    "discord": "tsx src/index.ts discord",
+    "web": "tsx src/index.ts web",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",
