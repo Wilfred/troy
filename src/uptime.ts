@@ -33,7 +33,7 @@ function getLatestCommit(): {
   hash: string;
 } | null {
   try {
-    const output = execFileSync("git", ["log", "-1", "--format=%H%n%aI%n%s"], {
+    const output = execFileSync("git", ["log", "-1", "--format=%H%n%cI%n%s"], {
       encoding: "utf-8",
     }).trim();
     const [hash, dateStr, ...messageParts] = output.split("\n");
