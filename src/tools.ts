@@ -67,6 +67,19 @@ const NOTE_TOOLS = [
   },
 ];
 
+const LIST_TOOLS_TOOL = {
+  type: "function" as const,
+  function: {
+    name: "list_tools",
+    description:
+      "List all available tools with their trust level and a brief description.",
+    parameters: {
+      type: "object",
+      properties: {},
+    },
+  },
+};
+
 const DELEGATE_TO_UNTRUSTED_TOOL = {
   type: "function" as const,
   function: {
@@ -98,6 +111,7 @@ export const TRUSTED_TOOLS = [
   UPTIME_TOOL,
   ENV_VARS_TOOL,
   CODE_SEARCH_TOOL,
+  LIST_TOOLS_TOOL,
   DELEGATE_TO_UNTRUSTED_TOOL,
 ];
 
@@ -108,6 +122,45 @@ export const UNTRUSTED_TOOLS = [
   ...GITHUB_TOOLS,
   ...SPOTIFY_TOOLS,
 ];
+
+function formatToolList(): string {
+  const trustedNames = new Set(
+    TRUSTED_TOOLS.map((t) => t.function.name),
+  );
+  const untrustedNames = new Set(
+    UNTRUSTED_TOOLS.map((t) => t.function.name),
+  );
+
+  const allTools = new Map<
+    string,
+    { description: string; trusted: boolean; untrusted: boolean }
+  >();
+  for (const t of [...TRUSTED_TOOLS, ...UNTRUSTED_TOOLS]) {
+    const existing = allTools.get(t.function.name);
+    if (existing) {
+      existing.untrusted = existing.untrusted || untrustedNames.has(t.function.name);
+      continue;
+    }
+    allTools.set(t.function.name, {
+      description: t.function.description,
+      trusted: trustedNames.has(t.function.name),
+      untrusted: untrustedNames.has(t.function.name),
+    });
+  }
+
+  const lines: string[] = [];
+  for (const [name, info] of allTools) {
+    const trust = info.trusted && info.untrusted
+      ? "trusted + untrusted"
+      : info.trusted
+        ? "trusted"
+        : "untrusted";
+    const desc = info.description.split(".")[0];
+    lines.push(`- **${name}** (${trust}): ${desc}.`);
+  }
+
+  return lines.join("\n");
+}
 
 export async function handleToolCall(
   name: string,
@@ -173,6 +226,10 @@ export async function handleToolCall(
 
   if (name === "search_source_code") {
     return handleCodeSearchToolCall(argsJson);
+  }
+
+  if (name === "list_tools") {
+    return formatToolList();
   }
 
   const calendarResult = await handleCalendarToolCall(name, argsJson);
