@@ -29,7 +29,7 @@ const NOTE_TOOLS = [
     function: {
       name: "rewrite_notes",
       description:
-        "Overwrite the user's NOTES.md file with new content. Use this to add, update, remove, or reorganize notes. Always base the new content on the current file shown in the system prompt, merging new information into the appropriate sections rather than duplicating headings.",
+        "Overwrite the user's NOTES.md file with new content. Use this to add, update, remove, or reorganize notes. Always base the new content on the current file shown in the system prompt, merging new information into the appropriate sections rather than duplicating headings. Do NOT use this for date-specific reminders or events — use create_calendar_event instead.",
       parameters: {
         type: "object",
         properties: {
