@@ -21,6 +21,7 @@ import { UPTIME_TOOL, handleUptimeToolCall } from "./uptime.js";
 import { ENV_VARS_TOOL, handleEnvVarsToolCall } from "./env.js";
 import { GITHUB_TOOLS, handleGithubToolCall } from "./github.js";
 import { CODE_SEARCH_TOOL, handleCodeSearchToolCall } from "./codesearch.js";
+import { TFL_TOOLS, handleTflToolCall } from "./tfl.js";
 import { log } from "./logger.js";
 
 const NOTE_TOOLS = [
@@ -111,6 +112,7 @@ export const TRUSTED_TOOLS = [
   UPTIME_TOOL,
   ENV_VARS_TOOL,
   CODE_SEARCH_TOOL,
+  ...TFL_TOOLS,
   LIST_TOOLS_TOOL,
   DELEGATE_TO_UNTRUSTED_TOOL,
 ];
@@ -243,6 +245,11 @@ export async function handleToolCall(
   const githubResult = await handleGithubToolCall(name, argsJson);
   if (githubResult !== null) {
     return githubResult;
+  }
+
+  const tflResult = await handleTflToolCall(name, argsJson);
+  if (tflResult !== null) {
+    return tflResult;
   }
 
   const dataDir = notesPath ? join(dirname(dirname(notesPath))) : "";
