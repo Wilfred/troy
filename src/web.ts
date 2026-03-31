@@ -4,7 +4,7 @@ import {
   Server,
   ServerResponse,
 } from "node:http";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -122,7 +122,7 @@ function renderListPage(
   }
 
   const body = `
-<nav class="nav-bar"><a href="/">Conversations</a> <a href="/reminders">Reminders</a> <a href="/notes">Notes</a></nav>
+<nav class="nav-bar"><a href="/">Conversations</a> <a href="/reminders">Reminders</a> <a href="/notes">Notes</a> <a href="/files">Files</a></nav>
 <h1><a href="/">Troy Conversations</a></h1>
 <table>
   <thead><tr><th>ID</th><th>Date</th><th>Prompt</th></tr></thead>
@@ -135,7 +135,7 @@ ${pagination}`;
 
 function renderDetailPage(c: ConversationRow): string {
   const body = `
-<nav class="nav-bar"><a href="/">Conversations</a> <a href="/reminders">Reminders</a> <a href="/notes">Notes</a></nav>
+<nav class="nav-bar"><a href="/">Conversations</a> <a href="/reminders">Reminders</a> <a href="/notes">Notes</a> <a href="/files">Files</a></nav>
 <a class="back-link" href="/">&larr; All conversations</a>
 <h1>Conversation C${c.id}</h1>
 <div class="detail-card">
@@ -166,7 +166,7 @@ function renderRemindersPage(dataDir: string): string {
   }
 
   const body = `
-<nav class="nav-bar"><a href="/">Conversations</a> <a href="/reminders">Reminders</a> <a href="/notes">Notes</a></nav>
+<nav class="nav-bar"><a href="/">Conversations</a> <a href="/reminders">Reminders</a> <a href="/notes">Notes</a> <a href="/files">Files</a></nav>
 <h1>Pending Reminders</h1>
 <table>
   <thead><tr><th>ID</th><th>Due</th><th>Message</th><th>Source</th><th>Created</th></tr></thead>
@@ -181,13 +181,79 @@ function renderNotesPage(dataDir: string): string {
   const content = existsSync(notesPath) ? readFileSync(notesPath, "utf-8") : "";
 
   const body = `
-<nav class="nav-bar"><a href="/">Conversations</a> <a href="/reminders">Reminders</a> <a href="/notes">Notes</a></nav>
+<nav class="nav-bar"><a href="/">Conversations</a> <a href="/reminders">Reminders</a> <a href="/notes">Notes</a> <a href="/files">Files</a></nav>
 <h1>Notes</h1>
 <div class="detail-card">
   <div class="detail-content">${content ? escapeHtml(content) : "<em>No notes yet.</em>"}</div>
 </div>`;
 
   return layoutHtml("Notes – Troy", body);
+}
+
+function listMarkdownFiles(
+  dataDir: string,
+): { subdir: string; name: string }[] {
+  const results: { subdir: string; name: string }[] = [];
+  for (const subdir of ["rules", "skills"]) {
+    const dir = join(dataDir, subdir);
+    if (!existsSync(dir)) continue;
+    for (const entry of readdirSync(dir)) {
+      if (entry.endsWith(".md")) {
+        results.push({ subdir, name: entry });
+      }
+    }
+  }
+  results.sort((a, b) =>
+    `${a.subdir}/${a.name}`.localeCompare(`${b.subdir}/${b.name}`),
+  );
+  return results;
+}
+
+function renderFilesPage(dataDir: string): string {
+  const files = listMarkdownFiles(dataDir);
+
+  let rows = "";
+  for (const f of files) {
+    rows += `<tr>
+  <td><a href="/files/${encodeURIComponent(f.subdir)}/${encodeURIComponent(f.name)}">${escapeHtml(f.name)}</a></td>
+  <td class="date-col">${escapeHtml(f.subdir)}</td>
+</tr>\n`;
+  }
+
+  const body = `
+<nav class="nav-bar"><a href="/">Conversations</a> <a href="/reminders">Reminders</a> <a href="/notes">Notes</a> <a href="/files">Files</a></nav>
+<h1>Data Files</h1>
+<table>
+  <thead><tr><th>File</th><th>Directory</th></tr></thead>
+  <tbody>${rows || "<tr><td colspan='2'>No markdown files found.</td></tr>"}</tbody>
+</table>`;
+
+  return layoutHtml("Files – Troy", body);
+}
+
+function renderFilePage(
+  dataDir: string,
+  subdir: string,
+  filename: string,
+): string | null {
+  if (subdir !== "rules" && subdir !== "skills") return null;
+  if (filename.includes("/") || filename.includes("\\") || filename === "..")
+    return null;
+  if (!filename.endsWith(".md")) return null;
+
+  const filePath = join(dataDir, subdir, filename);
+  if (!existsSync(filePath)) return null;
+
+  const content = readFileSync(filePath, "utf-8");
+  const body = `
+<nav class="nav-bar"><a href="/">Conversations</a> <a href="/reminders">Reminders</a> <a href="/notes">Notes</a> <a href="/files">Files</a></nav>
+<a class="back-link" href="/files">&larr; All files</a>
+<h1>${escapeHtml(subdir)}/${escapeHtml(filename)}</h1>
+<div class="detail-card">
+  <div class="detail-content">${escapeHtml(content)}</div>
+</div>`;
+
+  return layoutHtml(`${filename} – Troy`, body);
 }
 
 function render404(): string {
@@ -235,6 +301,29 @@ function handleRequest(
   if (pathname === "/notes") {
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     res.end(renderNotesPage(dataDir));
+    db.close();
+    return;
+  }
+
+  if (pathname === "/files") {
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    res.end(renderFilesPage(dataDir));
+    db.close();
+    return;
+  }
+
+  const fileMatch = /^\/files\/([^/]+)\/([^/]+)$/.exec(pathname);
+  if (fileMatch) {
+    const subdir = decodeURIComponent(fileMatch[1]);
+    const filename = decodeURIComponent(fileMatch[2]);
+    const html = renderFilePage(dataDir, subdir, filename);
+    if (html) {
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      res.end(html);
+    } else {
+      res.writeHead(404, { "Content-Type": "text/html; charset=utf-8" });
+      res.end(render404());
+    }
     db.close();
     return;
   }
