@@ -18,6 +18,7 @@ import {
 import { log } from "./logger.js";
 import { buildSystemPrompt } from "./systemprompt.js";
 import { DueReminder, startReminderScheduler } from "./reminders.js";
+import { DueRecurringTask, startRecurringScheduler } from "./recurring.js";
 import { MODEL } from "./consts.js";
 
 type Message =
@@ -322,6 +323,12 @@ async function replAction(opts: {
   startReminderScheduler(dataDir, (reminders: DueReminder[]) => {
     for (const r of reminders) {
       processStdout.write(`\n[Reminder]: ${r.message}\n`);
+    }
+  });
+
+  startRecurringScheduler(dataDir, (tasks: DueRecurringTask[]) => {
+    for (const t of tasks) {
+      processStdout.write(`\n[Recurring Task "${t.name}"]: ${t.prompt}\n`);
     }
   });
 

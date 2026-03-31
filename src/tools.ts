@@ -23,6 +23,7 @@ import { GITHUB_TOOLS, handleGithubToolCall } from "./github.js";
 import { CODE_SEARCH_TOOL, handleCodeSearchToolCall } from "./codesearch.js";
 import { TFL_TOOLS, handleTflToolCall } from "./tfl.js";
 import { HUE_TOOLS, handleHueToolCall } from "./hue.js";
+import { RECURRING_TOOLS, handleRecurringToolCall } from "./recurring.js";
 import { log } from "./logger.js";
 
 const NOTE_TOOLS = [
@@ -115,6 +116,7 @@ export const TRUSTED_TOOLS = [
   CODE_SEARCH_TOOL,
   ...TFL_TOOLS,
   ...HUE_TOOLS,
+  ...RECURRING_TOOLS,
   LIST_TOOLS_TOOL,
   DELEGATE_TO_UNTRUSTED_TOOL,
 ];
@@ -260,6 +262,17 @@ export async function handleToolCall(
   }
 
   const dataDir = notesPath ? join(dirname(dirname(notesPath))) : "";
+
+  const recurringResult = handleRecurringToolCall(
+    name,
+    argsJson,
+    dataDir,
+    source ?? "cli",
+  );
+  if (recurringResult !== null) {
+    return recurringResult;
+  }
+
   const reminderResult = handleReminderToolCall(
     name,
     argsJson,

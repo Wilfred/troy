@@ -21,6 +21,7 @@ import {
 import { log } from "./logger.js";
 import { buildSystemPrompt } from "./systemprompt.js";
 import { DueReminder, startReminderScheduler } from "./reminders.js";
+import { DueRecurringTask, startRecurringScheduler } from "./recurring.js";
 import { formatTablesForDiscord } from "./discordformat.js";
 
 type ChatMessage =
@@ -469,6 +470,24 @@ export async function startDiscordBot(
             .catch((err: unknown) =>
               log.error(
                 `Failed to send reminder to channel ${channelId}: ${err}`,
+              ),
+            );
+        }
+      }
+    });
+
+    startRecurringScheduler(dataDir, (tasks: DueRecurringTask[]) => {
+      for (const t of tasks) {
+        const match = t.source.match(/^discord:(\d+)$/);
+        if (!match) continue;
+        const channelId = match[1];
+        const channel = client.channels.cache.get(channelId);
+        if (channel && channel.isTextBased() && "send" in channel) {
+          (channel as { send: (msg: string) => Promise<unknown> })
+            .send(`**Recurring Task "${t.name}":** ${t.prompt}`)
+            .catch((err: unknown) =>
+              log.error(
+                `Failed to send recurring task to channel ${channelId}: ${err}`,
               ),
             );
         }
