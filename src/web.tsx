@@ -15,6 +15,12 @@ import {
   ConversationRow,
 } from "./conversationlog.js";
 import { listPendingReminders } from "./reminders.js";
+import {
+  PROCESS_START_TIME,
+  formatRelative,
+  getMachineBootTime,
+  getLatestCommit,
+} from "./uptime.js";
 import { log } from "./logger.js";
 import { escapeHtml } from "@kitajs/html";
 
@@ -55,7 +61,8 @@ function NavBar(): JSX.Element {
   return (
     <nav class="nav-bar">
       <a href="/">Conversations</a> <a href="/reminders">Reminders</a>{" "}
-      <a href="/notes">Notes</a> <a href="/files">Files</a>
+      <a href="/notes">Notes</a> <a href="/files">Files</a>{" "}
+      <a href="/uptime">Uptime</a>
     </nav>
   );
 }
@@ -339,6 +346,106 @@ function renderFilePage(
   return renderDocument(`${filename} – Troy`, body);
 }
 
+function renderUptimePage(): string {
+  const now = Date.now();
+  const processUptimeMs = now - PROCESS_START_TIME.getTime();
+
+  let machineBootedAt = "";
+  let machineUptime = "";
+  try {
+    const bootTime = getMachineBootTime();
+    machineBootedAt = bootTime.toISOString();
+    machineUptime = formatRelative(now - bootTime.getTime());
+  } catch {
+    machineBootedAt = "Unavailable";
+    machineUptime = "Unavailable";
+  }
+
+  const commit = getLatestCommit();
+
+  const body = (
+    <>
+      <NavBar />
+      <h1>Uptime</h1>
+      <div class="detail-card">
+        <h2>Process Uptime</h2>
+        <table>
+          <tbody>
+            <tr>
+              <td>
+                <strong>Started</strong>
+              </td>
+              <td>{PROCESS_START_TIME.toISOString()}</td>
+            </tr>
+            <tr>
+              <td>
+                <strong>Uptime</strong>
+              </td>
+              <td>{formatRelative(processUptimeMs)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="detail-card" style="margin-top: 1rem">
+        <h2>Machine Uptime</h2>
+        <table>
+          <tbody>
+            <tr>
+              <td>
+                <strong>Booted</strong>
+              </td>
+              <td>{machineBootedAt}</td>
+            </tr>
+            <tr>
+              <td>
+                <strong>Uptime</strong>
+              </td>
+              <td>{machineUptime}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="detail-card" style="margin-top: 1rem">
+        <h2>Latest Commit</h2>
+        {commit ? (
+          <table>
+            <tbody>
+              <tr>
+                <td>
+                  <strong>Hash</strong>
+                </td>
+                <td>{commit.hash}</td>
+              </tr>
+              <tr>
+                <td>
+                  <strong>Date</strong>
+                </td>
+                <td>{commit.date.toISOString()}</td>
+              </tr>
+              <tr>
+                <td>
+                  <strong>Age</strong>
+                </td>
+                <td>{formatRelative(now - commit.date.getTime())}</td>
+              </tr>
+              <tr>
+                <td>
+                  <strong>Message</strong>
+                </td>
+                <td>{escapeHtml(commit.message)}</td>
+              </tr>
+            </tbody>
+          </table>
+        ) : (
+          <p>Not in a git repository</p>
+        )}
+      </div>
+    </>
+  ) as string;
+
+  return renderDocument("Uptime – Troy", body);
+}
+
 function render404(): string {
   return renderDocument(
     "Not Found – Troy",
@@ -391,6 +498,13 @@ function handleRequest(
   if (pathname === "/notes") {
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     res.end(renderNotesPage(dataDir));
+    db.close();
+    return;
+  }
+
+  if (pathname === "/uptime") {
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    res.end(renderUptimePage());
     db.close();
     return;
   }

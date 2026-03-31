@@ -2,9 +2,9 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { log } from "./logger.js";
 
-const PROCESS_START_TIME = new Date();
+export const PROCESS_START_TIME = new Date();
 
-function formatRelative(ms: number): string {
+export function formatRelative(ms: number): string {
   const seconds = Math.floor(ms / 1000);
   const minutes = Math.floor(seconds / 60);
   const hours = Math.floor(minutes / 60);
@@ -20,14 +20,14 @@ function formatAbsolute(date: Date): string {
   return date.toISOString();
 }
 
-function getMachineBootTime(): Date {
+export function getMachineBootTime(): Date {
   const uptimeSeconds = parseFloat(
     readFileSync("/proc/uptime", "utf-8").split(" ")[0],
   );
   return new Date(Date.now() - uptimeSeconds * 1000);
 }
 
-function getLatestCommit(): {
+export function getLatestCommit(): {
   date: Date;
   message: string;
   hash: string;
