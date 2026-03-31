@@ -26,6 +26,7 @@
     "typescript-eslint": "^8.55.0"
   },
   "dependencies": {
+    "@kitajs/html": "^4.2.13",
     "@openrouter/sdk": "^0.8.0",
     "@types/better-sqlite3": "^7.6.13",
     "better-sqlite3": "^12.6.2",
