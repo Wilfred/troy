@@ -18,10 +18,7 @@ import {
 import { SPOTIFY_TOOLS, handleSpotifyToolCall } from "./spotify.js";
 import { REMINDER_TOOLS, handleReminderToolCall } from "./reminders.js";
 import { UPTIME_TOOL, handleUptimeToolCall } from "./uptime.js";
-import {
-  POLL_FOR_UPDATE_TOOL,
-  handlePollForUpdateToolCall,
-} from "./polling.js";
+import { POLL_TOOL, handlePollToolCall } from "./polling.js";
 import { ENV_VARS_TOOL, handleEnvVarsToolCall } from "./env.js";
 import { GITHUB_TOOLS, handleGithubToolCall } from "./github.js";
 import { CODE_SEARCH_TOOL, handleCodeSearchToolCall } from "./codesearch.js";
@@ -115,7 +112,7 @@ export const TRUSTED_TOOLS = [
   OPENROUTER_USAGE_TOOL,
   ...REMINDER_TOOLS,
   UPTIME_TOOL,
-  POLL_FOR_UPDATE_TOOL,
+  POLL_TOOL,
   ENV_VARS_TOOL,
   CODE_SEARCH_TOOL,
   ...TFL_TOOLS,
@@ -223,8 +220,8 @@ export async function handleToolCall(
     return handleUptimeToolCall();
   }
 
-  if (name === "poll_for_update") {
-    return await handlePollForUpdateToolCall();
+  if (name === "poll") {
+    return await handlePollToolCall(argsJson);
   }
 
   if (name === "list_env_vars") {
