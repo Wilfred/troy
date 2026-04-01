@@ -9,7 +9,7 @@ Troy is an agentic helper bot CLI powered by OpenRouter. It provides persistent 
 The data directory is split into two subdirectories:
 
 - `~/troy_data/rules/` — always loaded into the system prompt; `NOTES.md` lives here
-- `~/troy_data/skills/` — each `.md` file is loaded only when the initial sentence of the prompt matches the skill name (keyword match on the filename)
+- `~/troy_data/skills/` — each `.md` file has YAML front matter with a `description` field; an LLM call selects which skills are relevant to each prompt, and their content is loaded into the system prompt. Skills are also updated during the reflection process after each request.
 
 ## Commands
 
@@ -35,6 +35,7 @@ Run `npx knip` before committing to check for unused exports and dependencies.
 
 - `src/index.ts` — CLI entry point, system prompt construction, and chat loop
 - `src/tools.ts` — Tool registry (combines all tools) and note tool handlers
+- `src/skills.ts` — Skill file parsing (YAML front matter), listing, and LLM-based selection
 - `src/weather.ts` — Weather tool schema and Open-Meteo API integration
 - `src/calendar.ts` — Google Calendar tool schemas and handlers
 - `src/search.ts` — Web search tool using Brave Search API
