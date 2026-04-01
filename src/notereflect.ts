@@ -20,15 +20,16 @@ const REFLECT_TOOLS = [
   {
     type: "function" as const,
     function: {
-      name: "rewrite_notes",
+      name: "append_note",
       description:
-        "Overwrite NOTES.md with new content. Base the new content on the current notes, merging new information into the appropriate sections.",
+        "Append text to the end of NOTES.md. Use this to add new information.",
       parameters: {
         type: "object",
         properties: {
           content: {
             type: "string",
-            description: "The complete new content for NOTES.md",
+            description:
+              "The text to append to NOTES.md. Include a leading newline if you want a blank line before the new content.",
           },
         },
         required: ["content"],
@@ -76,9 +77,12 @@ function handleReflectToolCall(
     return "Done.";
   }
 
-  if (name === "rewrite_notes") {
+  if (name === "append_note") {
     const args = JSON.parse(argsJson) as { content: string };
-    writeFileSync(notesPath, args.content, "utf-8");
+    const current = existsSync(notesPath)
+      ? readFileSync(notesPath, "utf-8")
+      : "";
+    writeFileSync(notesPath, current + args.content, "utf-8");
     return "Done.";
   }
 
