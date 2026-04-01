@@ -19,7 +19,8 @@ import { log } from "./logger.js";
 import { buildSystemPrompt } from "./systemprompt.js";
 import { DueReminder, startReminderScheduler } from "./reminders.js";
 import { MODEL } from "./consts.js";
-import { reflectOnNotes } from "./notereflect.js";
+import { reflectOnNotes, reflectOnSkills } from "./notereflect.js";
+import { selectRelevantSkills, loadSelectedSkills } from "./skills.js";
 
 type Message =
   | { role: "system"; content: string }
@@ -347,7 +348,15 @@ async function replAction(opts: {
 
     // Re-read rules (including NOTES.md) on every prompt so that
     // updates made by tools or external edits take effect immediately.
-    const systemPrompt = buildSystemPrompt(dataDir);
+    const skillsDir = join(dataDir, "skills");
+    const selectedFilenames = await selectRelevantSkills(
+      client,
+      model,
+      skillsDir,
+      trimmed,
+    );
+    const skillContents = loadSelectedSkills(skillsDir, selectedFilenames);
+    const systemPrompt = buildSystemPrompt(dataDir, skillContents);
     messages[0] = { role: "system", content: systemPrompt };
 
     const conversationLog: ConversationEntry[] = [
@@ -391,6 +400,17 @@ async function replAction(opts: {
         log.warn(
           `Note reflection error: ${err instanceof Error ? err.message : String(err)}`,
         ),
+    );
+    reflectOnSkills(
+      client,
+      model,
+      join(dataDir, "skills"),
+      trimmed,
+      content,
+    ).catch((err: unknown) =>
+      log.warn(
+        `Skill reflection error: ${err instanceof Error ? err.message : String(err)}`,
+      ),
     );
   }
 
@@ -439,7 +459,15 @@ async function runAction(opts: {
   const db = openDb(dataDir);
   const history = loadRecentHistory(db);
 
-  const systemPrompt = buildSystemPrompt(dataDir, opts.prompt);
+  const skillsDir = join(dataDir, "skills");
+  const selectedFilenames = await selectRelevantSkills(
+    client,
+    model,
+    skillsDir,
+    opts.prompt,
+  );
+  const skillContents = loadSelectedSkills(skillsDir, selectedFilenames);
+  const systemPrompt = buildSystemPrompt(dataDir, skillContents);
   const messages: Message[] = [
     {
       role: "system",
@@ -479,6 +507,7 @@ async function runAction(opts: {
   const chatId = writeConversationLog(db, conversationLog);
 
   await reflectOnNotes(client, model, notesPath, opts.prompt, content);
+  await reflectOnSkills(client, model, skillsDir, opts.prompt, content);
 
   const uniqueTools = [...new Set([...toolsUsed].reverse())].reverse();
   const toolCount = uniqueTools.length;

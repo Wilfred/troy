@@ -1,36 +1,13 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { dateTimeContext } from "./dates.js";
+import { buildSkillCatalog } from "./skills.js";
 import { log } from "./logger.js";
 
-function getInitialSentence(prompt: string): string {
-  const match = /^[^.!?]*[.!?]?/.exec(prompt);
-  return match ? match[0].toLowerCase() : prompt.toLowerCase();
-}
-
-function loadMatchingSkills(skillsDir: string, prompt: string): string[] {
-  if (!existsSync(skillsDir)) return [];
-  const sentence = getInitialSentence(prompt);
-  const files = readdirSync(skillsDir)
-    .filter((f: string) => f.endsWith(".md"))
-    .sort();
-  const result: string[] = [];
-  for (const file of files) {
-    const skillName = file
-      .replace(/\.md$/, "")
-      .replace(/[-_]/g, " ")
-      .toLowerCase();
-    const words: string[] = skillName
-      .split(/\s+/)
-      .filter((w: string) => w.length > 2);
-    if (words.some((w: string) => sentence.includes(w))) {
-      result.push(readFileSync(join(skillsDir, file), "utf-8"));
-    }
-  }
-  return result;
-}
-
-export function buildSystemPrompt(dataDir: string, prompt?: string): string {
+export function buildSystemPrompt(
+  dataDir: string,
+  selectedSkillContents?: string[],
+): string {
   let systemPrompt = readFileSync(
     new URL("../src/SYSTEM.md", import.meta.url),
     "utf-8",
@@ -48,15 +25,20 @@ export function buildSystemPrompt(dataDir: string, prompt?: string): string {
     }
   }
 
-  let skillsCount = 0;
-  if (prompt) {
-    const skillsDir = join(dataDir, "skills");
-    const matchedSkills = loadMatchingSkills(skillsDir, prompt);
-    skillsCount = matchedSkills.length;
-    for (const content of matchedSkills) {
+  const skillsDir = join(dataDir, "skills");
+  const skillsCount = selectedSkillContents?.length ?? 0;
+  if (selectedSkillContents) {
+    for (const content of selectedSkillContents) {
       systemPrompt += "\n\n" + content;
     }
   }
+
+  // Always include the skill catalog so the model knows what skills exist.
+  const catalog = buildSkillCatalog(skillsDir);
+  if (catalog) {
+    systemPrompt += "\n" + catalog;
+  }
+
   log.debug(`Loaded ${rulesCount} rule(s) and ${skillsCount} skill(s)`);
 
   systemPrompt += `\n\n${dateTimeContext()}`;

@@ -22,7 +22,8 @@ import { log } from "./logger.js";
 import { buildSystemPrompt } from "./systemprompt.js";
 import { DueReminder, startReminderScheduler } from "./reminders.js";
 import { formatTablesForDiscord } from "./discordformat.js";
-import { reflectOnNotes } from "./notereflect.js";
+import { reflectOnNotes, reflectOnSkills } from "./notereflect.js";
+import { selectRelevantSkills, loadSelectedSkills } from "./skills.js";
 
 type ChatMessage =
   | { role: "system"; content: string }
@@ -332,7 +333,15 @@ async function handleDiscordMessage(
     const source = `discord:${discordMsg.channelId}`;
     const history = loadRecentHistory(db, source);
 
-    const systemPrompt = buildSystemPrompt(dataDir);
+    const skillsDir = join(dataDir, "skills");
+    const selectedFilenames = await selectRelevantSkills(
+      openrouter,
+      model,
+      skillsDir,
+      prompt,
+    );
+    const skillContents = loadSelectedSkills(skillsDir, selectedFilenames);
+    const systemPrompt = buildSystemPrompt(dataDir, skillContents);
     const messages: ChatMessage[] = [{ role: "system", content: systemPrompt }];
     for (const exchange of history) {
       messages.push({ role: "user", content: exchange.user });
@@ -373,6 +382,12 @@ async function handleDiscordMessage(
       (err: unknown) =>
         log.warn(
           `Note reflection error: ${err instanceof Error ? err.message : String(err)}`,
+        ),
+    );
+    reflectOnSkills(openrouter, model, skillsDir, prompt, content).catch(
+      (err: unknown) =>
+        log.warn(
+          `Skill reflection error: ${err instanceof Error ? err.message : String(err)}`,
         ),
     );
 
