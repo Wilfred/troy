@@ -37,9 +37,9 @@ describe("handleToolCall – note tools", () => {
     }
   });
 
-  it("rewrite_notes creates file with given content", async () => {
+  it("append_note creates file with given content", async () => {
     const result = await handleToolCall(
-      "rewrite_notes",
+      "append_note",
       JSON.stringify({ content: "# Notes\n\nhello world\n" }),
       notesPath,
     );
@@ -48,30 +48,30 @@ describe("handleToolCall – note tools", () => {
     assert.equal(content, "# Notes\n\nhello world\n");
   });
 
-  it("rewrite_notes overwrites existing file", async () => {
+  it("append_note appends to existing file", async () => {
     writeFileSync(notesPath, "old content\n", "utf-8");
     await handleToolCall(
-      "rewrite_notes",
-      JSON.stringify({ content: "# Notes\n\nnew content\n" }),
+      "append_note",
+      JSON.stringify({ content: "\nnew content\n" }),
       notesPath,
     );
     const content = readFileSync(notesPath, "utf-8");
-    assert.equal(content, "# Notes\n\nnew content\n");
+    assert.equal(content, "old content\n\nnew content\n");
   });
 
-  it("rewrite_notes second call fully replaces first", async () => {
+  it("append_note second call appends after first", async () => {
     await handleToolCall(
-      "rewrite_notes",
-      JSON.stringify({ content: "# Notes\n\nfirst\n" }),
+      "append_note",
+      JSON.stringify({ content: "first\n" }),
       notesPath,
     );
     await handleToolCall(
-      "rewrite_notes",
-      JSON.stringify({ content: "# Notes\n\nfirst\nsecond\n" }),
+      "append_note",
+      JSON.stringify({ content: "second\n" }),
       notesPath,
     );
     const content = readFileSync(notesPath, "utf-8");
-    assert.equal(content, "# Notes\n\nfirst\nsecond\n");
+    assert.equal(content, "first\nsecond\n");
   });
 
   it("edit_note replaces text in existing file", async () => {

@@ -264,7 +264,7 @@ export const CALENDAR_TOOLS = [
     function: {
       name: "create_calendar_event",
       description:
-        "Create a new event on the user's Google Calendar. Use this when the user asks to add, schedule, or create a calendar event, reminder, or note for a specific date. If the user mentions a specific date or time (e.g. 'add a note for the 8th of April', 'remind me on Tuesday'), prefer this tool over rewrite_notes. For all-day reminders, set start to the date and end to the next day.",
+        "Create a new event on the user's Google Calendar. Use this when the user asks to add, schedule, or create a calendar event, reminder, or note for a specific date. If the user mentions a specific date or time (e.g. 'add a note for the 8th of April', 'remind me on Tuesday'), prefer this tool over append_note. For all-day reminders, set start to the date and end to the next day.",
       parameters: {
         type: "object",
         properties: {

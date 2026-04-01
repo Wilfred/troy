@@ -29,15 +29,16 @@ const NOTE_TOOLS = [
   {
     type: "function" as const,
     function: {
-      name: "rewrite_notes",
+      name: "append_note",
       description:
-        "Overwrite the user's NOTES.md file with new content. Use this to add, update, remove, or reorganize notes. Always base the new content on the current file shown in the system prompt, merging new information into the appropriate sections rather than duplicating headings. Do NOT use this for date-specific reminders or events — use create_calendar_event instead.",
+        "Append text to the end of the user's NOTES.md file. Use this to add new information. Do NOT use this for date-specific reminders or events — use create_calendar_event instead.",
       parameters: {
         type: "object",
         properties: {
           content: {
             type: "string",
-            description: "The complete new content for NOTES.md",
+            description:
+              "The text to append to NOTES.md. Include a leading newline if you want a blank line before the new content.",
           },
         },
         required: ["content"],
@@ -172,9 +173,12 @@ export async function handleToolCall(
 ): Promise<string> {
   log.debug(`Handling tool: ${name}`);
 
-  if (name === "rewrite_notes") {
+  if (name === "append_note") {
     const args = JSON.parse(argsJson) as { content: string };
-    writeFileSync(notesPath, args.content, "utf-8");
+    const current = existsSync(notesPath)
+      ? readFileSync(notesPath, "utf-8")
+      : "";
+    writeFileSync(notesPath, current + args.content, "utf-8");
     return "Done.";
   }
 
