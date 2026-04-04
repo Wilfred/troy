@@ -62,8 +62,8 @@ function NavBar(): JSX.Element {
   return (
     <nav class="nav-bar">
       <a href="/">Conversations</a> <a href="/reminders">Reminders</a>{" "}
-      <a href="/notes">Notes</a> <a href="/skills">Skills</a>{" "}
-      <a href="/files">Files</a> <a href="/uptime">Uptime</a>
+      <a href="/skills">Skills</a> <a href="/files">Files</a>{" "}
+      <a href="/uptime">Uptime</a>
     </nav>
   );
 }
@@ -234,25 +234,6 @@ function renderRemindersPage(dataDir: string): string {
   ) as string;
 
   return renderDocument("Pending Reminders – Troy", body);
-}
-
-function renderNotesPage(dataDir: string): string {
-  const notesPath = join(dataDir, "rules", "NOTES.md");
-  const content = existsSync(notesPath) ? readFileSync(notesPath, "utf-8") : "";
-
-  const body = (
-    <>
-      <NavBar />
-      <h1>Notes</h1>
-      <div class="detail-card">
-        <div class="detail-content">
-          {content ? escapeHtml(content) : <em>No notes yet.</em>}
-        </div>
-      </div>
-    </>
-  ) as string;
-
-  return renderDocument("Notes – Troy", body);
 }
 
 function renderSkillsPage(dataDir: string): string {
@@ -568,13 +549,6 @@ function handleRequest(
   if (pathname === "/reminders") {
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     res.end(renderRemindersPage(dataDir));
-    db.close();
-    return;
-  }
-
-  if (pathname === "/notes") {
-    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    res.end(renderNotesPage(dataDir));
     db.close();
     return;
   }
