@@ -146,10 +146,10 @@ export function loadRecentHistory(
   db: Database.Database,
   source?: string,
 ): Exchange[] {
-  // Always include the 2 most recent exchanges.
+  // Always include the 3 most recent exchanges.
   const recentRows = db
     .prepare(
-      "SELECT id, prompt, response FROM conversations WHERE source = ? ORDER BY id DESC LIMIT 2",
+      "SELECT id, prompt, response FROM conversations WHERE source = ? ORDER BY id DESC LIMIT 3",
     )
     .all(source ?? "cli") as Array<{
     id: number;

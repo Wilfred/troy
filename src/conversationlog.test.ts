@@ -141,7 +141,7 @@ describe("writeConversationLog and loadRecentHistory", () => {
     assert.equal(row.content, "Prompt:\n  hello\n\nResponse:\n  hi there\n");
   });
 
-  it("loadRecentHistory returns the last 2 exchanges in order when older than 1 hour", () => {
+  it("loadRecentHistory returns the last 3 exchanges in order when older than 1 hour", () => {
     const db = openDb(dir);
     const makeEntries = (p: string, r: string): ConversationEntry[] => [
       { kind: "prompt", content: p },
@@ -150,14 +150,16 @@ describe("writeConversationLog and loadRecentHistory", () => {
     writeConversationLog(db, makeEntries("q1", "a1"));
     writeConversationLog(db, makeEntries("q2", "a2"));
     writeConversationLog(db, makeEntries("q3", "a3"));
-    // Backdate all entries so only the "last 2" logic applies.
+    writeConversationLog(db, makeEntries("q4", "a4"));
+    // Backdate all entries so only the "last 3" logic applies.
     db.prepare(
       "UPDATE conversations SET created_at = datetime('now', '-2 hours')",
     ).run();
     const history = loadRecentHistory(db);
-    assert.equal(history.length, 2);
+    assert.equal(history.length, 3);
     assert.deepEqual(history[0], { user: "q2", assistant: "a2" });
     assert.deepEqual(history[1], { user: "q3", assistant: "a3" });
+    assert.deepEqual(history[2], { user: "q4", assistant: "a4" });
   });
 
   it("loadRecentHistory filters by source", () => {
@@ -191,23 +193,26 @@ describe("writeConversationLog and loadRecentHistory", () => {
       { kind: "prompt", content: p },
       { kind: "response", content: r },
     ];
-    // Insert 4 conversations: first 2 older than 1 hour, last 2 recent.
+    // Insert 5 conversations: first 3 older than 1 hour, last 2 recent.
     writeConversationLog(db, entries("old1", "a1"));
     writeConversationLog(db, entries("old2", "a2"));
-    writeConversationLog(db, entries("recent1", "a3"));
-    writeConversationLog(db, entries("recent2", "a4"));
+    writeConversationLog(db, entries("old3", "a3"));
+    writeConversationLog(db, entries("recent1", "a4"));
+    writeConversationLog(db, entries("recent2", "a5"));
 
-    // Backdate the first two to 2 hours ago.
+    // Backdate the first three to 2 hours ago.
     db.prepare(
-      "UPDATE conversations SET created_at = datetime('now', '-2 hours') WHERE id IN (1, 2)",
+      "UPDATE conversations SET created_at = datetime('now', '-2 hours') WHERE id IN (1, 2, 3)",
     ).run();
 
-    // Without time-based logic, we'd only get the last 2 (recent1, recent2).
-    // With last-hour logic, we still get recent1 + recent2 (both are within the hour).
+    // Without time-based logic, we'd only get the last 3 (old3, recent1, recent2).
+    // With last-hour logic, we still get recent1 + recent2 (both are within the hour),
+    // plus old3 from the "last 3" logic — 3 total after dedup.
     const history = loadRecentHistory(db);
-    assert.equal(history.length, 2);
-    assert.deepEqual(history[0], { user: "recent1", assistant: "a3" });
-    assert.deepEqual(history[1], { user: "recent2", assistant: "a4" });
+    assert.equal(history.length, 3);
+    assert.deepEqual(history[0], { user: "old3", assistant: "a3" });
+    assert.deepEqual(history[1], { user: "recent1", assistant: "a4" });
+    assert.deepEqual(history[2], { user: "recent2", assistant: "a5" });
   });
 
   it("loadRecentHistory merges last-hour and recent exchanges without duplicates", () => {
@@ -236,20 +241,22 @@ describe("writeConversationLog and loadRecentHistory", () => {
       { kind: "prompt", content: p },
       { kind: "response", content: r },
     ];
-    // Insert 3 conversations, all old.
+    // Insert 4 conversations, all old.
     writeConversationLog(db, entries("q1", "a1"));
     writeConversationLog(db, entries("q2", "a2"));
     writeConversationLog(db, entries("q3", "a3"));
+    writeConversationLog(db, entries("q4", "a4"));
 
     // Backdate all to 2 hours ago.
     db.prepare(
       "UPDATE conversations SET created_at = datetime('now', '-2 hours')",
     ).run();
 
-    // Even though none are in the last hour, the 2 most recent should still be returned.
+    // Even though none are in the last hour, the 3 most recent should still be returned.
     const history = loadRecentHistory(db);
-    assert.equal(history.length, 2);
+    assert.equal(history.length, 3);
     assert.deepEqual(history[0], { user: "q2", assistant: "a2" });
     assert.deepEqual(history[1], { user: "q3", assistant: "a3" });
+    assert.deepEqual(history[2], { user: "q4", assistant: "a4" });
   });
 });
