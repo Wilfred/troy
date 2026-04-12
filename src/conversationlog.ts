@@ -97,7 +97,7 @@ export function writeConversationLog(
   const content = formatConversationLog(entries);
   const result = db
     .prepare(
-      "INSERT INTO conversations (source, prompt, response, content) VALUES (?, ?, ?, ?)",
+      "INSERT INTO conversations (source, prompt, response, content, created_at) VALUES (?, ?, ?, ?, datetime('now'))",
     )
     .run(source ?? "cli", prompt, response, content);
   return Number(result.lastInsertRowid);
