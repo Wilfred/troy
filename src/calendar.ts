@@ -96,6 +96,7 @@ async function listCalendarEvents(args: {
   time_max?: string;
   max_results?: number;
   calendar_id?: string;
+  query?: string;
 }): Promise<string> {
   const calendar = createGoogleCalendarClient();
   const calendarId = args.calendar_id ?? defaultCalendarId();
@@ -112,6 +113,7 @@ async function listCalendarEvents(args: {
     maxResults,
     singleEvents: true,
     orderBy: "startTime",
+    q: args.query,
   });
 
   const events = response.data.items;
@@ -231,7 +233,7 @@ export const CALENDAR_TOOLS = [
     function: {
       name: "list_calendar_events",
       description:
-        "List events from the user's Google Calendar. Use this when the user asks about their schedule, events, calendar, trips, travel, appointments, meetings, or any time-based activities — including past events. For questions about past events (e.g. 'when was my last trip to NYC?'), set time_min to a date well in the past and time_max to now.",
+        "List events from the user's Google Calendar. Use this when the user asks about their schedule, events, calendar, trips, travel, appointments, meetings, or any time-based activities — including past events. For questions about past events (e.g. 'when was my last trip to NYC?'), set time_min to a date well in the past and time_max to now. When the user asks about a specific event (e.g. 'when is Galileo's haircut?', 'when is my dentist appointment?'), pass a `query` to search by keyword instead of listing every event in a wide time range.",
       parameters: {
         type: "object",
         properties: {
@@ -253,6 +255,11 @@ export const CALENDAR_TOOLS = [
             type: "string",
             description:
               "Calendar ID to query (defaults to GOOGLE_CALENDAR_ID env var, or 'primary' if unset).",
+          },
+          query: {
+            type: "string",
+            description:
+              "Free-text search term. Only events whose summary, description, location, attendee names/emails, or organizer match this term are returned. Prefer using this (with a wide time range) for lookups of a specific known event, rather than listing all events.",
           },
         },
         required: [],
@@ -390,6 +397,7 @@ export async function handleCalendarToolCall(
       time_max?: string;
       max_results?: number;
       calendar_id?: string;
+      query?: string;
     };
     return await listCalendarEvents(args);
   }
