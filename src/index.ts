@@ -287,7 +287,7 @@ async function replAction(opts: {
   const dataDir = getDataDir(opts.dataDir);
 
   if (opts.webPort !== "0") {
-    startWebServer(dataDir, parseInt(opts.webPort ?? "3000"));
+    await startWebServer(dataDir, parseInt(opts.webPort ?? "3000"));
   }
 
   const apiKey = process.env.OPENROUTER_API_KEY;
@@ -302,8 +302,8 @@ async function replAction(opts: {
   const client = new OpenRouter({ apiKey });
   const notesPath = join(dataDir, "rules", "NOTES.md");
 
-  const db = openDb(dataDir);
-  const history = loadRecentHistory(db);
+  const db = await openDb(dataDir);
+  const history = await loadRecentHistory(db);
 
   const messages: Message[] = [
     {
@@ -390,7 +390,7 @@ async function replAction(opts: {
     conversationLog.push({ kind: "response", content });
     messages.push({ role: "assistant", content });
 
-    const chatId = writeConversationLog(db, conversationLog);
+    const chatId = await writeConversationLog(db, conversationLog);
     log.info(`Saved exchange as C${chatId}`);
 
     processStdout.write(`\n${content}\n\n`);
@@ -456,8 +456,8 @@ async function runAction(opts: {
   const client = new OpenRouter({ apiKey });
   const notesPath = join(dataDir, "rules", "NOTES.md");
 
-  const db = openDb(dataDir);
-  const history = loadRecentHistory(db);
+  const db = await openDb(dataDir);
+  const history = await loadRecentHistory(db);
 
   const skillsDir = join(dataDir, "skills");
   const selectedFilenames = await selectRelevantSkills(
@@ -504,7 +504,7 @@ async function runAction(opts: {
 
   conversationLog.push({ kind: "response", content });
 
-  const chatId = writeConversationLog(db, conversationLog);
+  const chatId = await writeConversationLog(db, conversationLog);
 
   await reflectOnNotes(client, model, notesPath, opts.prompt, content);
   await reflectOnSkills(client, model, skillsDir, opts.prompt, content);
@@ -538,7 +538,7 @@ async function discordAction(opts: {
 
   const webServer =
     opts.webPort !== "0"
-      ? startWebServer(dataDir, parseInt(opts.webPort ?? "3000"))
+      ? await startWebServer(dataDir, parseInt(opts.webPort ?? "3000"))
       : undefined;
 
   log.info("Starting Discord bot");
@@ -612,10 +612,10 @@ Environment variables:
       "data directory for .md files (default: ~/troy_data)",
     )
     .option("-p, --port <number>", "port to listen on (default: 3000)", "3000")
-    .action((opts: { dataDir?: string; port: string }) => {
+    .action(async (opts: { dataDir?: string; port: string }) => {
       const dataDir = getDataDir(opts.dataDir);
       const port = parseInt(opts.port);
-      startWebServer(dataDir, port);
+      await startWebServer(dataDir, port);
     });
 
   await program.parseAsync();

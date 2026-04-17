@@ -1,6 +1,6 @@
-import { mkdirSync } from "node:fs";
-import { join } from "node:path";
-import Database from "better-sqlite3";
+import { DataSource, MoreThanOrEqual } from "typeorm";
+import { Conversation } from "./entities.js";
+import { openConversationDb } from "./datasource.js";
 
 export type ConversationEntry =
   | { kind: "system"; content: string }
@@ -58,49 +58,30 @@ export function formatConversationLog(entries: ConversationEntry[]): string {
   return entries.map(formatEntry).join("\n\n") + "\n";
 }
 
-export function openDb(logDir: string): Database.Database {
-  mkdirSync(logDir, { recursive: true });
-  const db = new Database(join(logDir, "conversations.db"));
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS conversations (
-      id    INTEGER PRIMARY KEY AUTOINCREMENT,
-      source TEXT NOT NULL DEFAULT 'cli',
-      prompt   TEXT NOT NULL,
-      response TEXT NOT NULL,
-      content  TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    )
-  `);
-  // Migration: add created_at to tables created before this column existed.
-  const cols = db.prepare("PRAGMA table_info(conversations)").all() as Array<{
-    name: string;
-  }>;
-  if (!cols.some((c) => c.name === "created_at")) {
-    db.exec("ALTER TABLE conversations ADD COLUMN created_at TEXT DEFAULT ''");
-    db.exec(
-      "UPDATE conversations SET created_at = datetime('now') WHERE created_at = ''",
-    );
-  }
-  return db;
+export function openDb(logDir: string): Promise<DataSource> {
+  return openConversationDb(logDir);
 }
 
-export function writeConversationLog(
-  db: Database.Database,
+export async function writeConversationLog(
+  ds: DataSource,
   entries: ConversationEntry[],
   source?: string,
-): number {
+): Promise<number> {
   const promptEntry = entries.find((e) => e.kind === "prompt");
   const responseEntries = entries.filter((e) => e.kind === "response");
   const lastResponse = responseEntries[responseEntries.length - 1];
   const prompt = promptEntry?.content ?? "";
   const response = lastResponse?.content ?? "";
   const content = formatConversationLog(entries);
-  const result = db
-    .prepare(
-      "INSERT INTO conversations (source, prompt, response, content, created_at) VALUES (?, ?, ?, ?, datetime('now'))",
-    )
-    .run(source ?? "cli", prompt, response, content);
-  return Number(result.lastInsertRowid);
+  const repo = ds.getRepository(Conversation);
+  const row = repo.create({
+    source: source ?? "cli",
+    prompt,
+    response,
+    content,
+  });
+  await repo.save(row);
+  return row.id;
 }
 
 export type ConversationRow = {
@@ -112,83 +93,80 @@ export type ConversationRow = {
   created_at: string;
 };
 
-export function listConversations(
-  db: Database.Database,
+export async function listConversations(
+  ds: DataSource,
   limit: number = 50,
   offset: number = 0,
-): ConversationRow[] {
-  return db
-    .prepare(
-      "SELECT id, source, prompt, response, content, created_at FROM conversations ORDER BY id DESC LIMIT ? OFFSET ?",
-    )
-    .all(limit, offset) as ConversationRow[];
+): Promise<ConversationRow[]> {
+  return ds.getRepository(Conversation).find({
+    order: { id: "DESC" },
+    take: limit,
+    skip: offset,
+  });
 }
 
-export function getConversation(
-  db: Database.Database,
+export async function getConversation(
+  ds: DataSource,
   id: number,
-): ConversationRow | undefined {
-  return db
-    .prepare(
-      "SELECT id, source, prompt, response, content, created_at FROM conversations WHERE id = ?",
-    )
-    .get(id) as ConversationRow | undefined;
+): Promise<ConversationRow | undefined> {
+  const row = await ds.getRepository(Conversation).findOne({ where: { id } });
+  return row ?? undefined;
 }
 
-export function countConversations(db: Database.Database): number {
-  const row = db
-    .prepare("SELECT COUNT(*) as count FROM conversations")
-    .get() as { count: number };
-  return row.count;
+export async function countConversations(ds: DataSource): Promise<number> {
+  return ds.getRepository(Conversation).count();
 }
 
-export function loadRecentHistory(
-  db: Database.Database,
+function sqliteNow(offsetSeconds: number = 0): string {
+  const d = new Date(Date.now() + offsetSeconds * 1000);
+  const pad = (n: number): string => String(n).padStart(2, "0");
+  return (
+    `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ` +
+    `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`
+  );
+}
+
+export async function loadRecentHistory(
+  ds: DataSource,
   source?: string,
-): Exchange[] {
+): Promise<Exchange[]> {
+  const repo = ds.getRepository(Conversation);
+  const src = source ?? "cli";
+
   // Always include the 3 most recent exchanges.
-  const recentRows = db
-    .prepare(
-      "SELECT id, prompt, response FROM conversations WHERE source = ? ORDER BY id DESC LIMIT 3",
-    )
-    .all(source ?? "cli") as Array<{
-    id: number;
-    prompt: string;
-    response: string;
-  }>;
+  const recentRows = await repo.find({
+    where: { source: src },
+    order: { id: "DESC" },
+    take: 3,
+    select: ["id", "prompt", "response"],
+  });
 
   // Also include all exchanges from the last hour.
-  const lastHourRows = db
-    .prepare(
-      "SELECT id, prompt, response FROM conversations WHERE source = ? AND created_at >= datetime('now', '-1 hour') ORDER BY id ASC",
-    )
-    .all(source ?? "cli") as Array<{
-    id: number;
-    prompt: string;
-    response: string;
-  }>;
-
+  const oneHourAgo = sqliteNow(-3600);
+  const lastHourRows = await repo.find({
+    where: { source: src, created_at: MoreThanOrEqual(oneHourAgo) },
+    order: { id: "ASC" },
+    select: ["id", "prompt", "response"],
+  });
   // Merge and deduplicate by id, keeping chronological order.
   const seen = new Set<number>();
   const merged: Array<{ id: number; prompt: string; response: string }> = [];
 
-  // Add last-hour rows first (already in ASC order).
   for (const row of lastHourRows) {
     if (!seen.has(row.id)) {
       seen.add(row.id);
-      merged.push(row);
+      merged.push({ id: row.id, prompt: row.prompt, response: row.response });
     }
   }
 
-  // Add recent rows that weren't already included (reverse to get ASC order).
-  for (const row of recentRows.reverse()) {
+  const recentAsc = [...recentRows].reverse();
+  for (const row of recentAsc) {
     if (!seen.has(row.id)) {
       seen.add(row.id);
-      merged.push(row);
+      merged.push({ id: row.id, prompt: row.prompt, response: row.response });
     }
   }
 
-  // Sort by id to ensure chronological order.
   merged.sort((a, b) => a.id - b.id);
 
   return merged.map((row) => ({ user: row.prompt, assistant: row.response }));

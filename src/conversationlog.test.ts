@@ -10,6 +10,7 @@ import {
   writeConversationLog,
   loadRecentHistory,
 } from "./conversationlog.js";
+import { Conversation } from "./entities.js";
 
 function tmpDir(): string {
   const dir = join(
@@ -116,147 +117,155 @@ describe("writeConversationLog and loadRecentHistory", () => {
     }
   });
 
-  it("writeConversationLog returns an auto-incrementing id", () => {
-    const db = openDb(dir);
+  it("writeConversationLog returns an auto-incrementing id", async () => {
+    const db = await openDb(dir);
     const entries: ConversationEntry[] = [
       { kind: "prompt", content: "hello" },
       { kind: "response", content: "hi there" },
     ];
-    const id1 = writeConversationLog(db, entries);
-    const id2 = writeConversationLog(db, entries);
+    const id1 = await writeConversationLog(db, entries);
+    const id2 = await writeConversationLog(db, entries);
     assert.equal(id1, 1);
     assert.equal(id2, 2);
+    await db.destroy();
   });
 
-  it("writeConversationLog stores formatted content", () => {
-    const db = openDb(dir);
+  it("writeConversationLog stores formatted content", async () => {
+    const db = await openDb(dir);
     const entries: ConversationEntry[] = [
       { kind: "prompt", content: "hello" },
       { kind: "response", content: "hi there" },
     ];
-    writeConversationLog(db, entries);
-    const row = db
-      .prepare("SELECT content FROM conversations WHERE id = 1")
-      .get() as { content: string };
+    await writeConversationLog(db, entries);
+    const row = await db
+      .getRepository(Conversation)
+      .findOneOrFail({ where: { id: 1 } });
     assert.equal(row.content, "Prompt:\n  hello\n\nResponse:\n  hi there\n");
+    await db.destroy();
   });
 
-  it("loadRecentHistory returns the last 3 exchanges in order when older than 1 hour", () => {
-    const db = openDb(dir);
+  it("loadRecentHistory returns the last 3 exchanges in order when older than 1 hour", async () => {
+    const db = await openDb(dir);
     const makeEntries = (p: string, r: string): ConversationEntry[] => [
       { kind: "prompt", content: p },
       { kind: "response", content: r },
     ];
-    writeConversationLog(db, makeEntries("q1", "a1"));
-    writeConversationLog(db, makeEntries("q2", "a2"));
-    writeConversationLog(db, makeEntries("q3", "a3"));
-    writeConversationLog(db, makeEntries("q4", "a4"));
+    await writeConversationLog(db, makeEntries("q1", "a1"));
+    await writeConversationLog(db, makeEntries("q2", "a2"));
+    await writeConversationLog(db, makeEntries("q3", "a3"));
+    await writeConversationLog(db, makeEntries("q4", "a4"));
     // Backdate all entries so only the "last 3" logic applies.
-    db.prepare(
+    await db.query(
       "UPDATE conversations SET created_at = datetime('now', '-2 hours')",
-    ).run();
-    const history = loadRecentHistory(db);
+    );
+    const history = await loadRecentHistory(db);
     assert.equal(history.length, 3);
     assert.deepEqual(history[0], { user: "q2", assistant: "a2" });
     assert.deepEqual(history[1], { user: "q3", assistant: "a3" });
     assert.deepEqual(history[2], { user: "q4", assistant: "a4" });
+    await db.destroy();
   });
 
-  it("loadRecentHistory filters by source", () => {
-    const db = openDb(dir);
+  it("loadRecentHistory filters by source", async () => {
+    const db = await openDb(dir);
     const entries = (p: string, r: string): ConversationEntry[] => [
       { kind: "prompt", content: p },
       { kind: "response", content: r },
     ];
-    writeConversationLog(db, entries("cli1", "r1"), "cli");
-    writeConversationLog(db, entries("discord1", "r2"), "discord:123");
-    writeConversationLog(db, entries("cli2", "r3"), "cli");
+    await writeConversationLog(db, entries("cli1", "r1"), "cli");
+    await writeConversationLog(db, entries("discord1", "r2"), "discord:123");
+    await writeConversationLog(db, entries("cli2", "r3"), "cli");
 
-    const cliHistory = loadRecentHistory(db, "cli");
+    const cliHistory = await loadRecentHistory(db, "cli");
     assert.equal(cliHistory.length, 2);
     assert.deepEqual(cliHistory[0], { user: "cli1", assistant: "r1" });
     assert.deepEqual(cliHistory[1], { user: "cli2", assistant: "r3" });
 
-    const discordHistory = loadRecentHistory(db, "discord:123");
+    const discordHistory = await loadRecentHistory(db, "discord:123");
     assert.equal(discordHistory.length, 1);
     assert.deepEqual(discordHistory[0], { user: "discord1", assistant: "r2" });
+    await db.destroy();
   });
 
-  it("loadRecentHistory returns empty array when no history exists", () => {
-    const db = openDb(dir);
-    assert.deepEqual(loadRecentHistory(db), []);
+  it("loadRecentHistory returns empty array when no history exists", async () => {
+    const db = await openDb(dir);
+    assert.deepEqual(await loadRecentHistory(db), []);
+    await db.destroy();
   });
 
-  it("loadRecentHistory includes all discussions from the last hour", () => {
-    const db = openDb(dir);
+  it("loadRecentHistory includes all discussions from the last hour", async () => {
+    const db = await openDb(dir);
     const entries = (p: string, r: string): ConversationEntry[] => [
       { kind: "prompt", content: p },
       { kind: "response", content: r },
     ];
     // Insert 5 conversations: first 3 older than 1 hour, last 2 recent.
-    writeConversationLog(db, entries("old1", "a1"));
-    writeConversationLog(db, entries("old2", "a2"));
-    writeConversationLog(db, entries("old3", "a3"));
-    writeConversationLog(db, entries("recent1", "a4"));
-    writeConversationLog(db, entries("recent2", "a5"));
+    await writeConversationLog(db, entries("old1", "a1"));
+    await writeConversationLog(db, entries("old2", "a2"));
+    await writeConversationLog(db, entries("old3", "a3"));
+    await writeConversationLog(db, entries("recent1", "a4"));
+    await writeConversationLog(db, entries("recent2", "a5"));
 
     // Backdate the first three to 2 hours ago.
-    db.prepare(
+    await db.query(
       "UPDATE conversations SET created_at = datetime('now', '-2 hours') WHERE id IN (1, 2, 3)",
-    ).run();
+    );
 
     // Without time-based logic, we'd only get the last 3 (old3, recent1, recent2).
     // With last-hour logic, we still get recent1 + recent2 (both are within the hour),
     // plus old3 from the "last 3" logic — 3 total after dedup.
-    const history = loadRecentHistory(db);
+    const history = await loadRecentHistory(db);
     assert.equal(history.length, 3);
     assert.deepEqual(history[0], { user: "old3", assistant: "a3" });
     assert.deepEqual(history[1], { user: "recent1", assistant: "a4" });
     assert.deepEqual(history[2], { user: "recent2", assistant: "a5" });
+    await db.destroy();
   });
 
-  it("loadRecentHistory merges last-hour and recent exchanges without duplicates", () => {
-    const db = openDb(dir);
+  it("loadRecentHistory merges last-hour and recent exchanges without duplicates", async () => {
+    const db = await openDb(dir);
     const entries = (p: string, r: string): ConversationEntry[] => [
       { kind: "prompt", content: p },
       { kind: "response", content: r },
     ];
     // Insert 5 conversations, all recent (within the hour).
-    writeConversationLog(db, entries("q1", "a1"));
-    writeConversationLog(db, entries("q2", "a2"));
-    writeConversationLog(db, entries("q3", "a3"));
-    writeConversationLog(db, entries("q4", "a4"));
-    writeConversationLog(db, entries("q5", "a5"));
+    await writeConversationLog(db, entries("q1", "a1"));
+    await writeConversationLog(db, entries("q2", "a2"));
+    await writeConversationLog(db, entries("q3", "a3"));
+    await writeConversationLog(db, entries("q4", "a4"));
+    await writeConversationLog(db, entries("q5", "a5"));
 
     // All 5 are within the last hour, so all should be included.
-    const history = loadRecentHistory(db);
+    const history = await loadRecentHistory(db);
     assert.equal(history.length, 5);
     assert.deepEqual(history[0], { user: "q1", assistant: "a1" });
     assert.deepEqual(history[4], { user: "q5", assistant: "a5" });
+    await db.destroy();
   });
 
-  it("loadRecentHistory includes old recent exchanges even if outside the hour", () => {
-    const db = openDb(dir);
+  it("loadRecentHistory includes old recent exchanges even if outside the hour", async () => {
+    const db = await openDb(dir);
     const entries = (p: string, r: string): ConversationEntry[] => [
       { kind: "prompt", content: p },
       { kind: "response", content: r },
     ];
     // Insert 4 conversations, all old.
-    writeConversationLog(db, entries("q1", "a1"));
-    writeConversationLog(db, entries("q2", "a2"));
-    writeConversationLog(db, entries("q3", "a3"));
-    writeConversationLog(db, entries("q4", "a4"));
+    await writeConversationLog(db, entries("q1", "a1"));
+    await writeConversationLog(db, entries("q2", "a2"));
+    await writeConversationLog(db, entries("q3", "a3"));
+    await writeConversationLog(db, entries("q4", "a4"));
 
     // Backdate all to 2 hours ago.
-    db.prepare(
+    await db.query(
       "UPDATE conversations SET created_at = datetime('now', '-2 hours')",
-    ).run();
+    );
 
     // Even though none are in the last hour, the 3 most recent should still be returned.
-    const history = loadRecentHistory(db);
+    const history = await loadRecentHistory(db);
     assert.equal(history.length, 3);
     assert.deepEqual(history[0], { user: "q2", assistant: "a2" });
     assert.deepEqual(history[1], { user: "q3", assistant: "a3" });
     assert.deepEqual(history[2], { user: "q4", assistant: "a4" });
+    await db.destroy();
   });
 });

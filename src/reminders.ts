@@ -1,32 +1,7 @@
-import { mkdirSync } from "node:fs";
-import { join } from "node:path";
-import Database from "better-sqlite3";
+import { LessThanOrEqual } from "typeorm";
+import { Reminder } from "./entities.js";
+import { openReminderDb } from "./datasource.js";
 import { log } from "./logger.js";
-
-interface ReminderRow {
-  id: number;
-  message: string;
-  remind_at: string;
-  created_at: string;
-  delivered: number;
-  source: string;
-}
-
-function openRemindersDb(dataDir: string): Database.Database {
-  mkdirSync(dataDir, { recursive: true });
-  const db = new Database(join(dataDir, "reminders.db"));
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS reminders (
-      id         INTEGER PRIMARY KEY AUTOINCREMENT,
-      message    TEXT NOT NULL,
-      remind_at  TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      delivered  INTEGER NOT NULL DEFAULT 0,
-      source     TEXT NOT NULL DEFAULT 'cli'
-    )
-  `);
-  return db;
-}
 
 export interface DueReminder {
   id: number;
@@ -35,32 +10,34 @@ export interface DueReminder {
   source: string;
 }
 
-function checkDueReminders(dataDir: string): DueReminder[] {
-  const db = openRemindersDb(dataDir);
-  const now = new Date().toISOString();
-  const rows = db
-    .prepare(
-      "SELECT id, message, remind_at, source FROM reminders WHERE delivered = 0 AND remind_at <= ? ORDER BY remind_at",
-    )
-    .all(now) as ReminderRow[];
+async function checkDueReminders(dataDir: string): Promise<DueReminder[]> {
+  const ds = await openReminderDb(dataDir);
+  try {
+    const repo = ds.getRepository(Reminder);
+    const now = new Date().toISOString();
+    const rows = await repo.find({
+      where: { delivered: 0, remind_at: LessThanOrEqual(now) },
+      order: { remind_at: "ASC" },
+    });
 
-  if (rows.length === 0) {
-    db.close();
-    return [];
+    if (rows.length === 0) {
+      return [];
+    }
+
+    await repo.update(
+      rows.map((r) => r.id),
+      { delivered: 1 },
+    );
+
+    return rows.map((r) => ({
+      id: r.id,
+      message: r.message,
+      remind_at: r.remind_at,
+      source: r.source,
+    }));
+  } finally {
+    await ds.destroy();
   }
-
-  const ids = rows.map((r) => r.id);
-  db.prepare(
-    `UPDATE reminders SET delivered = 1 WHERE id IN (${ids.map(() => "?").join(",")})`,
-  ).run(...ids);
-  db.close();
-
-  return rows.map((r) => ({
-    id: r.id,
-    message: r.message,
-    remind_at: r.remind_at,
-    source: r.source,
-  }));
 }
 
 const POLL_INTERVAL_MS = 30_000;
@@ -70,16 +47,15 @@ export function startReminderScheduler(
   onDue: (reminders: DueReminder[]) => void,
 ): NodeJS.Timeout {
   const timer = setInterval(() => {
-    try {
-      const due = checkDueReminders(dataDir);
-      if (due.length > 0) {
-        onDue(due);
-      }
-    } catch (err) {
-      log.error(
-        `Reminder scheduler error: ${err instanceof Error ? err.message : String(err)}`,
-      );
-    }
+    checkDueReminders(dataDir)
+      .then((due) => {
+        if (due.length > 0) onDue(due);
+      })
+      .catch((err: unknown) => {
+        log.error(
+          `Reminder scheduler error: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      });
   }, POLL_INTERVAL_MS);
 
   // Don't keep the process alive just for the scheduler
@@ -146,11 +122,11 @@ export const REMINDER_TOOLS = [
   },
 ];
 
-function handleSetReminder(
+async function handleSetReminder(
   dataDir: string,
   argsJson: string,
   source: string,
-): string {
+): Promise<string> {
   const args = JSON.parse(argsJson) as {
     message: string;
     remind_at: string;
@@ -161,52 +137,60 @@ function handleSetReminder(
     return "Error: invalid remind_at datetime. Use ISO 8601 format (e.g. '2025-03-15T14:30:00').";
   }
 
-  const db = openRemindersDb(dataDir);
-  const result = db
-    .prepare(
-      "INSERT INTO reminders (message, remind_at, source) VALUES (?, ?, ?)",
-    )
-    .run(args.message, remindAt.toISOString(), source);
-  db.close();
-
-  log.info(
-    `Created reminder #${result.lastInsertRowid} for ${remindAt.toISOString()}`,
-  );
-  return `Reminder #${result.lastInsertRowid} set for ${remindAt.toISOString()}: "${args.message}"`;
-}
-
-function handleListReminders(dataDir: string): string {
-  const db = openRemindersDb(dataDir);
-  const rows = db
-    .prepare(
-      "SELECT id, message, remind_at, created_at FROM reminders WHERE delivered = 0 ORDER BY remind_at",
-    )
-    .all() as ReminderRow[];
-  db.close();
-
-  if (rows.length === 0) {
-    return "No pending reminders.";
+  const ds = await openReminderDb(dataDir);
+  try {
+    const repo = ds.getRepository(Reminder);
+    const reminder = repo.create({
+      message: args.message,
+      remind_at: remindAt.toISOString(),
+      source,
+    });
+    await repo.save(reminder);
+    log.info(`Created reminder #${reminder.id} for ${remindAt.toISOString()}`);
+    return `Reminder #${reminder.id} set for ${remindAt.toISOString()}: "${args.message}"`;
+  } finally {
+    await ds.destroy();
   }
-
-  const lines = rows.map(
-    (r) =>
-      `#${r.id}: "${r.message}" — due ${r.remind_at} (created ${r.created_at})`,
-  );
-  return `Pending reminders:\n${lines.join("\n")}`;
 }
 
-function handleDeleteReminder(dataDir: string, argsJson: string): string {
+async function handleListReminders(dataDir: string): Promise<string> {
+  const ds = await openReminderDb(dataDir);
+  try {
+    const rows = await ds.getRepository(Reminder).find({
+      where: { delivered: 0 },
+      order: { remind_at: "ASC" },
+    });
+
+    if (rows.length === 0) {
+      return "No pending reminders.";
+    }
+
+    const lines = rows.map(
+      (r) =>
+        `#${r.id}: "${r.message}" — due ${r.remind_at} (created ${r.created_at})`,
+    );
+    return `Pending reminders:\n${lines.join("\n")}`;
+  } finally {
+    await ds.destroy();
+  }
+}
+
+async function handleDeleteReminder(
+  dataDir: string,
+  argsJson: string,
+): Promise<string> {
   const args = JSON.parse(argsJson) as { id: number };
-  const db = openRemindersDb(dataDir);
-  const result = db.prepare("DELETE FROM reminders WHERE id = ?").run(args.id);
-  db.close();
-
-  if (result.changes === 0) {
-    return `No reminder found with ID #${args.id}.`;
+  const ds = await openReminderDb(dataDir);
+  try {
+    const result = await ds.getRepository(Reminder).delete({ id: args.id });
+    if (!result.affected) {
+      return `No reminder found with ID #${args.id}.`;
+    }
+    log.info(`Deleted reminder #${args.id}`);
+    return `Reminder #${args.id} deleted.`;
+  } finally {
+    await ds.destroy();
   }
-
-  log.info(`Deleted reminder #${args.id}`);
-  return `Reminder #${args.id} deleted.`;
 }
 
 interface PendingReminder {
@@ -217,23 +201,33 @@ interface PendingReminder {
   source: string;
 }
 
-export function listPendingReminders(dataDir: string): PendingReminder[] {
-  const db = openRemindersDb(dataDir);
-  const rows = db
-    .prepare(
-      "SELECT id, message, remind_at, created_at, source FROM reminders WHERE delivered = 0 ORDER BY remind_at",
-    )
-    .all() as PendingReminder[];
-  db.close();
-  return rows;
+export async function listPendingReminders(
+  dataDir: string,
+): Promise<PendingReminder[]> {
+  const ds = await openReminderDb(dataDir);
+  try {
+    const rows = await ds.getRepository(Reminder).find({
+      where: { delivered: 0 },
+      order: { remind_at: "ASC" },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      message: r.message,
+      remind_at: r.remind_at,
+      created_at: r.created_at,
+      source: r.source,
+    }));
+  } finally {
+    await ds.destroy();
+  }
 }
 
-export function handleReminderToolCall(
+export async function handleReminderToolCall(
   name: string,
   argsJson: string,
   dataDir: string,
   source: string,
-): string | null {
+): Promise<string | null> {
   if (name === "set_reminder") {
     return handleSetReminder(dataDir, argsJson, source);
   }
