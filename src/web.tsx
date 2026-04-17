@@ -7,6 +7,7 @@ import {
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { DataSource } from "typeorm";
 import {
   openDb,
   listConversations,
@@ -193,8 +194,8 @@ function renderDetailPage(c: ConversationRow): string {
   return renderDocument(`C${c.id} – Troy`, body);
 }
 
-function renderRemindersPage(dataDir: string): string {
-  const reminders = listPendingReminders(dataDir);
+async function renderRemindersPage(dataDir: string): Promise<string> {
+  const reminders = await listPendingReminders(dataDir);
 
   const body = (
     <>
@@ -522,11 +523,12 @@ function parseUrl(url: string): URL {
   return new URL(url, "http://localhost");
 }
 
-function handleRequest(
+async function handleRequest(
   req: IncomingMessage,
   res: ServerResponse,
   dataDir: string,
-): void {
+  db: DataSource,
+): Promise<void> {
   const parsed = parseUrl(req.url ?? "/");
   const pathname = parsed.pathname;
 
@@ -536,34 +538,29 @@ function handleRequest(
     return;
   }
 
-  const db = openDb(dataDir);
   const conversationMatch = /^\/conversation\/(\d+)$/.exec(pathname);
 
   if (pathname === "/style.css") {
     res.writeHead(200, { "Content-Type": "text/css; charset=utf-8" });
     res.end(STYLE_CSS);
-    db.close();
     return;
   }
 
   if (pathname === "/reminders") {
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    res.end(renderRemindersPage(dataDir));
-    db.close();
+    res.end(await renderRemindersPage(dataDir));
     return;
   }
 
   if (pathname === "/uptime") {
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     res.end(renderUptimePage());
-    db.close();
     return;
   }
 
   if (pathname === "/skills") {
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     res.end(renderSkillsPage(dataDir));
-    db.close();
     return;
   }
 
@@ -578,14 +575,12 @@ function handleRequest(
       res.writeHead(404, { "Content-Type": "text/html; charset=utf-8" });
       res.end(render404());
     }
-    db.close();
     return;
   }
 
   if (pathname === "/files") {
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     res.end(renderFilesPage(dataDir));
-    db.close();
     return;
   }
 
@@ -601,20 +596,19 @@ function handleRequest(
       res.writeHead(404, { "Content-Type": "text/html; charset=utf-8" });
       res.end(render404());
     }
-    db.close();
     return;
   }
 
   if (pathname === "/" || pathname === "") {
     const page = Math.max(1, parseInt(parsed.searchParams.get("page") ?? "1"));
     const offset = (page - 1) * PAGE_SIZE;
-    const conversations = listConversations(db, PAGE_SIZE, offset);
-    const total = countConversations(db);
+    const conversations = await listConversations(db, PAGE_SIZE, offset);
+    const total = await countConversations(db);
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     res.end(renderListPage(conversations, total, page));
   } else if (conversationMatch) {
     const id = parseInt(conversationMatch[1]);
-    const conversation = getConversation(db, id);
+    const conversation = await getConversation(db, id);
     if (conversation) {
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
       res.end(renderDetailPage(conversation));
@@ -626,21 +620,24 @@ function handleRequest(
     res.writeHead(404, { "Content-Type": "text/html; charset=utf-8" });
     res.end(render404());
   }
-
-  db.close();
 }
 
-export function startWebServer(dataDir: string, port: number): Server {
+export async function startWebServer(
+  dataDir: string,
+  port: number,
+): Promise<Server> {
+  const db = await openDb(dataDir);
+
   const server = createServer((req, res) => {
-    try {
-      handleRequest(req, res, dataDir);
-    } catch (err) {
+    handleRequest(req, res, dataDir, db).catch((err: unknown) => {
       log.error(
         `Web request error: ${err instanceof Error ? err.message : String(err)}`,
       );
-      res.writeHead(500, { "Content-Type": "text/plain" });
+      if (!res.headersSent) {
+        res.writeHead(500, { "Content-Type": "text/plain" });
+      }
       res.end("Internal Server Error");
-    }
+    });
   });
 
   server.listen(port, () => {

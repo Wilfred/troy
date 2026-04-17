@@ -41,6 +41,8 @@ Run `npx knip` before committing to check for unused exports and dependencies.
 - `src/search.ts` — Web search tool using Brave Search API
 - `src/discord.ts` — Discord bot integration
 - `src/conversationlog.ts` — Conversation logging utilities
+- `src/entities.ts` — TypeORM entity definitions (Conversation, Reminder)
+- `src/datasource.ts` — TypeORM DataSource initialization for the SQLite files
 - `src/logger.ts` — Structured logging via winston
 
 **CLI subcommands** (via Commander.js, exposed as npm scripts):

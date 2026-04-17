@@ -264,7 +264,7 @@ export async function handleToolCall(
   }
 
   const dataDir = notesPath ? join(dirname(dirname(notesPath))) : "";
-  const reminderResult = handleReminderToolCall(
+  const reminderResult = await handleReminderToolCall(
     name,
     argsJson,
     dataDir,

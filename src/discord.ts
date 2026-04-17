@@ -8,7 +8,7 @@ import {
   Partials,
 } from "discord.js";
 import { OpenRouter } from "@openrouter/sdk";
-import Database from "better-sqlite3";
+import { DataSource } from "typeorm";
 import { MODEL } from "./consts.js";
 import { TRUSTED_TOOLS, UNTRUSTED_TOOLS, handleToolCall } from "./tools.js";
 import {
@@ -311,7 +311,7 @@ async function handleDiscordMessage(
   openrouter: OpenRouter,
   model: string,
   dataDir: string,
-  db: Database.Database,
+  db: DataSource,
 ): Promise<void> {
   const prompt = discordMsg.content.replace(/<@[!&]?\d+>/g, "").trim();
 
@@ -331,7 +331,7 @@ async function handleDiscordMessage(
   try {
     const notesPath = join(dataDir, "rules", "NOTES.md");
     const source = `discord:${discordMsg.channelId}`;
-    const history = loadRecentHistory(db, source);
+    const history = await loadRecentHistory(db, source);
 
     const skillsDir = join(dataDir, "skills");
     const selectedFilenames = await selectRelevantSkills(
@@ -374,7 +374,7 @@ async function handleDiscordMessage(
 
     conversationLog.push({ kind: "response", content });
 
-    const chatId = writeConversationLog(db, conversationLog, source);
+    const chatId = await writeConversationLog(db, conversationLog, source);
 
     const formatted = formatTablesForDiscord(content);
 
@@ -464,7 +464,7 @@ export async function startDiscordBot(
   mkdirSync(join(dataDir, "rules"), { recursive: true });
   mkdirSync(join(dataDir, "skills"), { recursive: true });
 
-  const db = openDb(dataDir);
+  const db = await openDb(dataDir);
 
   const client = new Client({
     intents: [
