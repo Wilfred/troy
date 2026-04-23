@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { readSkillRaw, writeSkillRaw } from "./skills.js";
 import { WEATHER_TOOL, handleWeatherToolCall } from "./weather.js";
 import { CALENDAR_TOOLS, handleCalendarToolCall } from "./calendar.js";
 import {
@@ -70,6 +71,55 @@ const NOTE_TOOLS = [
   },
 ];
 
+const SKILL_TOOLS = [
+  {
+    type: "function" as const,
+    function: {
+      name: "read_skill",
+      description:
+        "Read the full contents of a skill file (YAML front matter + body) from the skills directory. Useful for inspecting a skill before editing it.",
+      parameters: {
+        type: "object",
+        properties: {
+          filename: {
+            type: "string",
+            description: "The skill filename (e.g. cooking.md).",
+          },
+        },
+        required: ["filename"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "edit_skill",
+      description:
+        "Edit a skill file by replacing existing text with new text. Operates on the entire raw file, including the YAML front matter, so you can update the description or body. Use an empty new_text to delete the matched text.",
+      parameters: {
+        type: "object",
+        properties: {
+          filename: {
+            type: "string",
+            description: "The skill filename (e.g. cooking.md).",
+          },
+          old_text: {
+            type: "string",
+            description:
+              "The existing text in the skill file to find and replace.",
+          },
+          new_text: {
+            type: "string",
+            description:
+              "The replacement text. Use an empty string to delete the old text.",
+          },
+        },
+        required: ["filename", "old_text", "new_text"],
+      },
+    },
+  },
+];
+
 const LIST_TOOLS_TOOL = {
   type: "function" as const,
   function: {
@@ -105,6 +155,7 @@ const DELEGATE_TO_UNTRUSTED_TOOL = {
 
 export const TRUSTED_TOOLS = [
   ...NOTE_TOOLS,
+  ...SKILL_TOOLS,
   WEATHER_TOOL,
   ...CALENDAR_TOOLS,
   DATE_RANGE_TOOL,
@@ -196,6 +247,36 @@ export async function handleToolCall(
     const updated = current.replace(args.old_text, args.new_text);
     writeFileSync(notesPath, updated, "utf-8");
     return "Done.";
+  }
+
+  if (name === "read_skill") {
+    const args = JSON.parse(argsJson) as { filename: string };
+    const skillsDir = join(dirname(dirname(notesPath)), "skills");
+    try {
+      return readSkillRaw(skillsDir, args.filename);
+    } catch {
+      return `Error: skill file "${args.filename}" not found.`;
+    }
+  }
+
+  if (name === "edit_skill") {
+    const args = JSON.parse(argsJson) as {
+      filename: string;
+      old_text: string;
+      new_text: string;
+    };
+    const skillsDir = join(dirname(dirname(notesPath)), "skills");
+    try {
+      const current = readSkillRaw(skillsDir, args.filename);
+      if (!current.includes(args.old_text)) {
+        return `Error: old_text not found in ${args.filename}.`;
+      }
+      const updated = current.replace(args.old_text, args.new_text);
+      writeSkillRaw(skillsDir, args.filename, updated);
+      return "Done.";
+    } catch {
+      return `Error: skill file "${args.filename}" not found.`;
+    }
   }
 
   if (name === "get_weather") {

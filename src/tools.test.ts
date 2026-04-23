@@ -1,6 +1,27 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { formatToolList, TRUSTED_TOOLS, UNTRUSTED_TOOLS } from "./tools.js";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import {
+  formatToolList,
+  handleToolCall,
+  TRUSTED_TOOLS,
+  UNTRUSTED_TOOLS,
+} from "./tools.js";
+
+function makeDataDir(): {
+  dataDir: string;
+  notesPath: string;
+  skillsDir: string;
+} {
+  const dataDir = mkdtempSync(join(tmpdir(), "troy-skill-test-"));
+  mkdirSync(join(dataDir, "rules"));
+  mkdirSync(join(dataDir, "skills"));
+  const notesPath = join(dataDir, "rules", "NOTES.md");
+  writeFileSync(notesPath, "", "utf-8");
+  return { dataDir, notesPath, skillsDir: join(dataDir, "skills") };
+}
 
 describe("formatToolList", () => {
   it("includes every trusted tool", () => {
@@ -69,5 +90,69 @@ describe("formatToolList", () => {
     const names = lines.map((l) => l.match(/\*\*(.+?)\*\*/)?.[1]);
     const unique = new Set(names);
     assert.equal(names.length, unique.size, "Tool names should be unique");
+  });
+});
+
+describe("skill tools", () => {
+  it("read_skill returns the raw file contents", async () => {
+    const { notesPath, skillsDir } = makeDataDir();
+    const content = "---\ndescription: testing\n---\nhello body\n";
+    writeFileSync(join(skillsDir, "foo.md"), content, "utf-8");
+
+    const result = await handleToolCall(
+      "read_skill",
+      JSON.stringify({ filename: "foo.md" }),
+      notesPath,
+    );
+    assert.equal(result, content);
+  });
+
+  it("read_skill reports a missing file", async () => {
+    const { notesPath } = makeDataDir();
+    const result = await handleToolCall(
+      "read_skill",
+      JSON.stringify({ filename: "missing.md" }),
+      notesPath,
+    );
+    assert.match(result, /not found/);
+  });
+
+  it("edit_skill replaces text in the skill file", async () => {
+    const { notesPath, skillsDir } = makeDataDir();
+    const original = "---\ndescription: old desc\n---\nkeep me\n";
+    writeFileSync(join(skillsDir, "foo.md"), original, "utf-8");
+
+    const result = await handleToolCall(
+      "edit_skill",
+      JSON.stringify({
+        filename: "foo.md",
+        old_text: "old desc",
+        new_text: "new desc",
+      }),
+      notesPath,
+    );
+    assert.equal(result, "Done.");
+    const updated = readFileSync(join(skillsDir, "foo.md"), "utf-8");
+    assert.equal(updated, "---\ndescription: new desc\n---\nkeep me\n");
+  });
+
+  it("edit_skill reports when old_text is not found", async () => {
+    const { notesPath, skillsDir } = makeDataDir();
+    writeFileSync(
+      join(skillsDir, "foo.md"),
+      "---\ndescription: d\n---\nbody\n",
+      "utf-8",
+    );
+
+    const result = await handleToolCall(
+      "edit_skill",
+      JSON.stringify({
+        filename: "foo.md",
+        old_text: "nope",
+        new_text: "x",
+      }),
+      notesPath,
+    );
+    assert.match(result, /not found/);
   });
 });
