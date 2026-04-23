@@ -4,6 +4,7 @@ import { openConversationDb } from "./datasource.js";
 
 export type ConversationEntry =
   | { kind: "system"; content: string }
+  | { kind: "skills"; filenames: string[] }
   | { kind: "history"; role: "user" | "assistant"; content: string }
   | { kind: "prompt"; content: string }
   | { kind: "response"; content: string }
@@ -23,6 +24,11 @@ function formatEntry(entry: ConversationEntry): string {
   switch (entry.kind) {
     case "system":
       return `System:\n${indentBlock(entry.content)}`;
+    case "skills":
+      if (entry.filenames.length === 0) {
+        return "Skills:\n  (none)";
+      }
+      return `Skills:\n${entry.filenames.map((f) => `  - ${f}`).join("\n")}`;
     case "history":
       return `History ${entry.role}:\n${indentBlock(entry.content)}`;
     case "prompt":

@@ -353,6 +353,7 @@ async function handleDiscordMessage(
     const toolInputs: Array<{ name: string; args: unknown }> = [];
     const conversationLog: ConversationEntry[] = [
       ...buildContextEntries(systemPrompt, history),
+      { kind: "skills", filenames: selectedFilenames },
       { kind: "prompt", content: prompt },
     ];
 
