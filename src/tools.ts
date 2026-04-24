@@ -216,6 +216,10 @@ export function formatToolList(): string {
   return lines.join("\n");
 }
 
+function skillsDirFromNotes(notesPath: string): string {
+  return join(dirname(dirname(notesPath)), "skills");
+}
+
 export async function handleToolCall(
   name: string,
   argsJson: string,
@@ -251,9 +255,8 @@ export async function handleToolCall(
 
   if (name === "read_skill") {
     const args = JSON.parse(argsJson) as { filename: string };
-    const skillsDir = join(dirname(dirname(notesPath)), "skills");
     try {
-      return readSkillRaw(skillsDir, args.filename);
+      return readSkillRaw(skillsDirFromNotes(notesPath), args.filename);
     } catch {
       return `Error: skill file "${args.filename}" not found.`;
     }
@@ -265,7 +268,7 @@ export async function handleToolCall(
       old_text: string;
       new_text: string;
     };
-    const skillsDir = join(dirname(dirname(notesPath)), "skills");
+    const skillsDir = skillsDirFromNotes(notesPath);
     try {
       const current = readSkillRaw(skillsDir, args.filename);
       if (!current.includes(args.old_text)) {
