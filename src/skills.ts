@@ -167,6 +167,10 @@ export function readSkillRaw(skillsDir: string, filename: string): string {
   return readFileSync(join(skillsDir, filename), "utf-8");
 }
 
+export function skillExists(skillsDir: string, filename: string): boolean {
+  return existsSync(join(skillsDir, filename));
+}
+
 export function writeSkillRaw(
   skillsDir: string,
   filename: string,
