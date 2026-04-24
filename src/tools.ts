@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { readSkillRaw, writeSkillRaw } from "./skills.js";
+import { readSkillRaw, skillExists, writeSkillRaw } from "./skills.js";
 import { WEATHER_TOOL, handleWeatherToolCall } from "./weather.js";
 import { CALENDAR_TOOLS, handleCalendarToolCall } from "./calendar.js";
 import {
@@ -72,6 +72,34 @@ const NOTE_TOOLS = [
 ];
 
 const SKILL_TOOLS = [
+  {
+    type: "function" as const,
+    function: {
+      name: "create_skill",
+      description:
+        "Create a new skill file in the skills directory. The file is written with YAML front matter containing the description, followed by the body. Fails if a skill with the same filename already exists — use edit_skill to modify an existing skill.",
+      parameters: {
+        type: "object",
+        properties: {
+          filename: {
+            type: "string",
+            description:
+              "The skill filename (e.g. cooking.md). Must end with .md.",
+          },
+          description: {
+            type: "string",
+            description:
+              "A short description of what the skill covers. Used to decide when to load the skill.",
+          },
+          body: {
+            type: "string",
+            description: "The markdown body content of the skill.",
+          },
+        },
+        required: ["filename", "description", "body"],
+      },
+    },
+  },
   {
     type: "function" as const,
     function: {
@@ -250,6 +278,24 @@ export async function handleToolCall(
     }
     const updated = current.replace(args.old_text, args.new_text);
     writeFileSync(notesPath, updated, "utf-8");
+    return "Done.";
+  }
+
+  if (name === "create_skill") {
+    const args = JSON.parse(argsJson) as {
+      filename: string;
+      description: string;
+      body: string;
+    };
+    if (!args.filename.endsWith(".md")) {
+      return "Error: filename must end with .md.";
+    }
+    const skillsDir = skillsDirFromNotes(notesPath);
+    if (skillExists(skillsDir, args.filename)) {
+      return `Error: skill file "${args.filename}" already exists. Use edit_skill to modify it.`;
+    }
+    const content = `---\ndescription: ${args.description}\n---\n${args.body}`;
+    writeSkillRaw(skillsDir, args.filename, content);
     return "Done.";
   }
 

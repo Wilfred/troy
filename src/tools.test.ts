@@ -136,6 +136,59 @@ describe("skill tools", () => {
     assert.equal(updated, "---\ndescription: new desc\n---\nkeep me\n");
   });
 
+  it("create_skill writes a new skill with front matter", async () => {
+    const { notesPath, skillsDir } = makeDataDir();
+
+    const result = await handleToolCall(
+      "create_skill",
+      JSON.stringify({
+        filename: "cooking.md",
+        description: "how to cook",
+        body: "# Cooking\n\nStep 1: boil water.\n",
+      }),
+      notesPath,
+    );
+    assert.equal(result, "Done.");
+    const written = readFileSync(join(skillsDir, "cooking.md"), "utf-8");
+    assert.equal(
+      written,
+      "---\ndescription: how to cook\n---\n# Cooking\n\nStep 1: boil water.\n",
+    );
+  });
+
+  it("create_skill refuses a filename without .md extension", async () => {
+    const { notesPath } = makeDataDir();
+    const result = await handleToolCall(
+      "create_skill",
+      JSON.stringify({
+        filename: "cooking",
+        description: "d",
+        body: "b",
+      }),
+      notesPath,
+    );
+    assert.match(result, /must end with \.md/);
+  });
+
+  it("create_skill refuses to overwrite an existing skill", async () => {
+    const { notesPath, skillsDir } = makeDataDir();
+    const original = "---\ndescription: original\n---\nbody\n";
+    writeFileSync(join(skillsDir, "foo.md"), original, "utf-8");
+
+    const result = await handleToolCall(
+      "create_skill",
+      JSON.stringify({
+        filename: "foo.md",
+        description: "new",
+        body: "new body",
+      }),
+      notesPath,
+    );
+    assert.match(result, /already exists/);
+    const unchanged = readFileSync(join(skillsDir, "foo.md"), "utf-8");
+    assert.equal(unchanged, original);
+  });
+
   it("edit_skill reports when old_text is not found", async () => {
     const { notesPath, skillsDir } = makeDataDir();
     writeFileSync(
