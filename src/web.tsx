@@ -24,7 +24,6 @@ import {
 } from "./uptime.js";
 import { log } from "./logger.js";
 import { escapeHtml } from "@kitajs/html";
-import { listSkillSummaries, parseFrontMatter } from "./skills.js";
 
 const STYLE_CSS = readFileSync(
   join(dirname(fileURLToPath(import.meta.url)), "public", "style.css"),
@@ -63,8 +62,7 @@ function NavBar(): JSX.Element {
   return (
     <nav class="nav-bar">
       <a href="/">Conversations</a> <a href="/reminders">Reminders</a>{" "}
-      <a href="/skills">Skills</a> <a href="/files">Files</a>{" "}
-      <a href="/uptime">Uptime</a>
+      <a href="/files">Files</a> <a href="/uptime">Uptime</a>
     </nav>
   );
 }
@@ -235,82 +233,6 @@ async function renderRemindersPage(dataDir: string): Promise<string> {
   ) as string;
 
   return renderDocument("Pending Reminders – Troy", body);
-}
-
-function renderSkillsPage(dataDir: string): string {
-  const skillsDir = join(dataDir, "skills");
-  const summaries = listSkillSummaries(skillsDir);
-
-  const body = (
-    <>
-      <NavBar />
-      <h1>Skills</h1>
-      <table>
-        <thead>
-          <tr>
-            <th>Skill</th>
-            <th>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          {summaries.length > 0 ? (
-            summaries.map((s) => (
-              <tr>
-                <td>
-                  <a href={`/skills/${encodeURIComponent(s.filename)}`}>
-                    {escapeHtml(s.filename)}
-                  </a>
-                </td>
-                <td>{escapeHtml(s.description)}</td>
-              </tr>
-            ))
-          ) : (
-            <tr>
-              <td colspan="2">No skills yet.</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </>
-  ) as string;
-
-  return renderDocument("Skills – Troy", body);
-}
-
-function renderSkillPage(dataDir: string, filename: string): string | null {
-  if (filename.includes("/") || filename.includes("\\") || filename === "..")
-    return null;
-  if (!filename.endsWith(".md")) return null;
-
-  const filePath = join(dataDir, "skills", filename);
-  if (!existsSync(filePath)) return null;
-
-  const raw = readFileSync(filePath, "utf-8");
-  const { description, body: skillBody } = parseFrontMatter(raw);
-
-  const body = (
-    <>
-      <NavBar />
-      <a class="back-link" href="/skills">
-        ← All skills
-      </a>
-      <h1>{escapeHtml(filename)}</h1>
-      <div class="detail-card">
-        {description && (
-          <div class="detail-meta">
-            <div>
-              <strong>Description:</strong> {escapeHtml(description)}
-            </div>
-          </div>
-        )}
-        <div class="detail-content">
-          {skillBody.trim() ? escapeHtml(skillBody) : <em>No content.</em>}
-        </div>
-      </div>
-    </>
-  ) as string;
-
-  return renderDocument(`${filename} – Troy`, body);
 }
 
 function listMarkdownFiles(
@@ -555,26 +477,6 @@ async function handleRequest(
   if (pathname === "/uptime") {
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     res.end(renderUptimePage());
-    return;
-  }
-
-  if (pathname === "/skills") {
-    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    res.end(renderSkillsPage(dataDir));
-    return;
-  }
-
-  const skillMatch = /^\/skills\/([^/]+)$/.exec(pathname);
-  if (skillMatch) {
-    const filename = decodeURIComponent(skillMatch[1]);
-    const html = renderSkillPage(dataDir, filename);
-    if (html) {
-      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-      res.end(html);
-    } else {
-      res.writeHead(404, { "Content-Type": "text/html; charset=utf-8" });
-      res.end(render404());
-    }
     return;
   }
 
