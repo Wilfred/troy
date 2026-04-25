@@ -361,6 +361,7 @@ async function replAction(opts: {
 
     const conversationLog: ConversationEntry[] = [
       ...buildContextEntries(systemPrompt, history),
+      { kind: "skills", filenames: selectedFilenames },
       { kind: "prompt", content: trimmed },
     ];
     messages.push({ role: "user", content: trimmed });
@@ -484,6 +485,7 @@ async function runAction(opts: {
   const toolInputs: Array<{ name: string; args: unknown }> = [];
   const conversationLog: ConversationEntry[] = [
     ...buildContextEntries(systemPrompt, history),
+    { kind: "skills", filenames: selectedFilenames },
     { kind: "prompt", content: opts.prompt },
   ];
   log.info("Starting trusted agent");

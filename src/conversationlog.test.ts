@@ -92,6 +92,27 @@ describe("conversationlog", () => {
     assert.equal(result, expected);
   });
 
+  it("formats a skills entry with selected filenames", () => {
+    const entries: ConversationEntry[] = [
+      { kind: "skills", filenames: ["weather.md", "calendar.md"] },
+      { kind: "prompt", content: "foo" },
+    ];
+    const result = formatConversationLog(entries);
+    assert.equal(
+      result,
+      "Skills:\n  - weather.md\n  - calendar.md\n\nPrompt:\n  foo\n",
+    );
+  });
+
+  it("formats an empty skills entry as (none)", () => {
+    const entries: ConversationEntry[] = [
+      { kind: "skills", filenames: [] },
+      { kind: "prompt", content: "foo" },
+    ];
+    const result = formatConversationLog(entries);
+    assert.equal(result, "Skills:\n  (none)\n\nPrompt:\n  foo\n");
+  });
+
   it("handles entries with empty content", () => {
     const entries: ConversationEntry[] = [
       { kind: "prompt", content: "" },
