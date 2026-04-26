@@ -21,6 +21,12 @@ export class Conversation {
   @Column({ type: "text", nullable: true })
   entries!: string | null;
 
+  // JSON-encoded ChatMessage[] for this turn (user prompt, assistant
+  // turns with tool calls, and tool results). Used to replay full
+  // tool-call history into subsequent turns.
+  @Column({ type: "text", nullable: true })
+  messages!: string | null;
+
   @Index()
   @Column({ type: "text", default: () => "(datetime('now'))" })
   created_at!: string;

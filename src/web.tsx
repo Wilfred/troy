@@ -172,6 +172,10 @@ function entryLabel(entry: ConversationEntry): string {
       return "Skills";
     case "history":
       return `History — ${entry.role}`;
+    case "history_tool_input":
+      return "History — tool input";
+    case "history_tool_output":
+      return "History — tool output";
     case "prompt":
       return "Prompt";
     case "response":
@@ -238,6 +242,25 @@ function EntryBlock({ entry }: { entry: ConversationEntry }): JSX.Element {
         </div>
         <pre class="entry-body">{escapeHtml(entry.content)}</pre>
       </div>
+    );
+  }
+
+  if (
+    entry.kind === "history_tool_input" ||
+    entry.kind === "history_tool_output"
+  ) {
+    const cls =
+      entry.kind === "history_tool_input"
+        ? "entry entry-tool-input"
+        : "entry entry-tool-output";
+    return (
+      <details class={cls}>
+        <summary class="entry-header">
+          <span class="entry-label">{label}</span>
+          <span class="badge badge-tool">{escapeHtml(entry.name)}</span>
+        </summary>
+        <pre class="entry-body">{escapeHtml(entry.content)}</pre>
+      </details>
     );
   }
 

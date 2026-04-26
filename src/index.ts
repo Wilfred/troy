@@ -10,6 +10,7 @@ import { startDiscordBot } from "./discord.js";
 import { startWebServer } from "./web.js";
 import {
   ConversationEntry,
+  StoredMessage,
   openDb,
   writeConversationLog,
   loadRecentHistory,
@@ -312,8 +313,14 @@ async function replAction(opts: {
     },
   ];
   for (const exchange of history) {
-    messages.push({ role: "user", content: exchange.user });
-    messages.push({ role: "assistant", content: exchange.assistant });
+    if (exchange.messages.length > 0) {
+      for (const m of exchange.messages) {
+        messages.push(m as Message);
+      }
+    } else {
+      messages.push({ role: "user", content: exchange.user });
+      messages.push({ role: "assistant", content: exchange.assistant });
+    }
   }
 
   const toolsUsed: string[] = [];
@@ -364,6 +371,7 @@ async function replAction(opts: {
       { kind: "skills", filenames: selectedFilenames },
       { kind: "prompt", content: trimmed },
     ];
+    const turnStart = messages.length;
     messages.push({ role: "user", content: trimmed });
 
     let content = "";
@@ -379,19 +387,27 @@ async function replAction(opts: {
       );
     } catch (err) {
       log.error(`Error: ${err instanceof Error ? err.message : String(err)}`);
-      messages.pop();
+      messages.length = turnStart;
       continue;
     }
 
     if (!content) {
       log.error("No response content from model");
+      messages.length = turnStart;
       continue;
     }
 
     conversationLog.push({ kind: "response", content });
     messages.push({ role: "assistant", content });
 
-    const chatId = await writeConversationLog(db, conversationLog);
+    const turnMessages = messages.slice(turnStart) as StoredMessage[];
+    history.push({ user: trimmed, assistant: content, messages: turnMessages });
+    const chatId = await writeConversationLog(
+      db,
+      conversationLog,
+      undefined,
+      turnMessages,
+    );
     log.info(`Saved exchange as C${chatId}`);
 
     processStdout.write(`\n${content}\n\n`);
@@ -476,9 +492,16 @@ async function runAction(opts: {
     },
   ];
   for (const exchange of history) {
-    messages.push({ role: "user", content: exchange.user });
-    messages.push({ role: "assistant", content: exchange.assistant });
+    if (exchange.messages.length > 0) {
+      for (const m of exchange.messages) {
+        messages.push(m as Message);
+      }
+    } else {
+      messages.push({ role: "user", content: exchange.user });
+      messages.push({ role: "assistant", content: exchange.assistant });
+    }
   }
+  const turnStart = messages.length;
   messages.push({ role: "user", content: opts.prompt });
 
   const toolsUsed: string[] = [];
@@ -505,8 +528,15 @@ async function runAction(opts: {
   }
 
   conversationLog.push({ kind: "response", content });
+  messages.push({ role: "assistant", content });
 
-  const chatId = await writeConversationLog(db, conversationLog);
+  const turnMessages = messages.slice(turnStart) as StoredMessage[];
+  const chatId = await writeConversationLog(
+    db,
+    conversationLog,
+    undefined,
+    turnMessages,
+  );
 
   await reflectOnNotes(client, model, notesPath, opts.prompt, content);
   await reflectOnSkills(client, model, skillsDir, opts.prompt, content);

@@ -2,16 +2,37 @@ import { DataSource, MoreThanOrEqual } from "typeorm";
 import { Conversation } from "./entities.js";
 import { openConversationDb } from "./datasource.js";
 
+export type StoredToolCall = {
+  id: string;
+  type: "function";
+  function: { name: string; arguments: string };
+};
+
+export type StoredMessage =
+  | { role: "user"; content: string }
+  | {
+      role: "assistant";
+      content?: string | null;
+      toolCalls?: StoredToolCall[];
+    }
+  | { role: "tool"; content: string; toolCallId: string };
+
 export type ConversationEntry =
   | { kind: "system"; content: string }
   | { kind: "skills"; filenames: string[] }
   | { kind: "history"; role: "user" | "assistant"; content: string }
+  | { kind: "history_tool_input"; name: string; content: string }
+  | { kind: "history_tool_output"; name: string; content: string }
   | { kind: "prompt"; content: string }
   | { kind: "response"; content: string }
   | { kind: "tool_input"; name: string; content: string }
   | { kind: "tool_output"; name: string; content: string; duration_ms: number };
 
-type Exchange = { user: string; assistant: string };
+type Exchange = {
+  user: string;
+  assistant: string;
+  messages: StoredMessage[];
+};
 
 function indentBlock(text: string): string {
   return text
@@ -31,6 +52,10 @@ function formatEntry(entry: ConversationEntry): string {
       return `Skills:\n${entry.filenames.map((f) => `  - ${f}`).join("\n")}`;
     case "history":
       return `History ${entry.role}:\n${indentBlock(entry.content)}`;
+    case "history_tool_input":
+      return `History tool input name=${entry.name}:\n${indentBlock(entry.content)}`;
+    case "history_tool_output":
+      return `History tool output name=${entry.name}:\n${indentBlock(entry.content)}`;
     case "prompt":
       return `Prompt:\n${indentBlock(entry.content)}`;
     case "response":
@@ -42,6 +67,67 @@ function formatEntry(entry: ConversationEntry): string {
   }
 }
 
+function toolNameById(messages: StoredMessage[]): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const m of messages) {
+    if (m.role === "assistant" && m.toolCalls) {
+      for (const tc of m.toolCalls) {
+        map.set(tc.id, tc.function.name);
+      }
+    }
+  }
+  return map;
+}
+
+function entriesForExchange(exchange: Exchange): ConversationEntry[] {
+  const out: ConversationEntry[] = [];
+  if (exchange.messages.length === 0) {
+    out.push({ kind: "history", role: "user", content: exchange.user });
+    out.push({
+      kind: "history",
+      role: "assistant",
+      content: exchange.assistant,
+    });
+    return out;
+  }
+  const nameById = toolNameById(exchange.messages);
+  for (const m of exchange.messages) {
+    if (m.role === "user") {
+      out.push({ kind: "history", role: "user", content: m.content });
+    } else if (m.role === "assistant") {
+      if (m.toolCalls && m.toolCalls.length > 0) {
+        if (m.content) {
+          out.push({
+            kind: "history",
+            role: "assistant",
+            content: m.content,
+          });
+        }
+        for (const tc of m.toolCalls) {
+          out.push({
+            kind: "history_tool_input",
+            name: tc.function.name,
+            content: tc.function.arguments,
+          });
+        }
+      } else {
+        out.push({
+          kind: "history",
+          role: "assistant",
+          content: (m.content as string) ?? "",
+        });
+      }
+    } else {
+      out.push({
+        kind: "history_tool_output",
+        name: nameById.get(m.toolCallId) ?? "unknown",
+        content: m.content,
+      });
+    }
+  }
+  return out;
+}
+
 export function buildContextEntries(
   systemPrompt: string,
   history: Exchange[],
@@ -50,12 +136,7 @@ export function buildContextEntries(
     { kind: "system", content: systemPrompt },
   ];
   for (const exchange of history) {
-    entries.push({ kind: "history", role: "user", content: exchange.user });
-    entries.push({
-      kind: "history",
-      role: "assistant",
-      content: exchange.assistant,
-    });
+    entries.push(...entriesForExchange(exchange));
   }
   return entries;
 }
@@ -79,6 +160,7 @@ export async function writeConversationLog(
   ds: DataSource,
   entries: ConversationEntry[],
   source?: string,
+  messages?: StoredMessage[],
 ): Promise<number> {
   const promptEntry = entries.find((e) => e.kind === "prompt");
   const responseEntries = entries.filter((e) => e.kind === "response");
@@ -93,6 +175,7 @@ export async function writeConversationLog(
     response,
     content,
     entries: JSON.stringify(entries),
+    messages: messages ? JSON.stringify(messages) : null,
   });
   await repo.save(row);
   return row.id;
@@ -105,6 +188,7 @@ export type ConversationRow = {
   response: string;
   content: string;
   entries: string | null;
+  messages: string | null;
   created_at: string;
 };
 
@@ -141,6 +225,19 @@ function sqliteNow(offsetSeconds: number = 0): string {
   );
 }
 
+function parseStoredMessages(raw: string | null): StoredMessage[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (Array.isArray(parsed)) {
+      return parsed as StoredMessage[];
+    }
+  } catch {
+    // ignore — fall through to empty
+  }
+  return [];
+}
+
 export async function loadRecentHistory(
   ds: DataSource,
   source?: string,
@@ -153,7 +250,7 @@ export async function loadRecentHistory(
     where: { source: src },
     order: { id: "DESC" },
     take: 3,
-    select: ["id", "prompt", "response"],
+    select: ["id", "prompt", "response", "messages"],
   });
 
   // Also include all exchanges from the last hour.
@@ -161,16 +258,26 @@ export async function loadRecentHistory(
   const lastHourRows = await repo.find({
     where: { source: src, created_at: MoreThanOrEqual(oneHourAgo) },
     order: { id: "ASC" },
-    select: ["id", "prompt", "response"],
+    select: ["id", "prompt", "response", "messages"],
   });
   // Merge and deduplicate by id, keeping chronological order.
   const seen = new Set<number>();
-  const merged: Array<{ id: number; prompt: string; response: string }> = [];
+  const merged: Array<{
+    id: number;
+    prompt: string;
+    response: string;
+    messages: string | null;
+  }> = [];
 
   for (const row of lastHourRows) {
     if (!seen.has(row.id)) {
       seen.add(row.id);
-      merged.push({ id: row.id, prompt: row.prompt, response: row.response });
+      merged.push({
+        id: row.id,
+        prompt: row.prompt,
+        response: row.response,
+        messages: row.messages,
+      });
     }
   }
 
@@ -178,11 +285,20 @@ export async function loadRecentHistory(
   for (const row of recentAsc) {
     if (!seen.has(row.id)) {
       seen.add(row.id);
-      merged.push({ id: row.id, prompt: row.prompt, response: row.response });
+      merged.push({
+        id: row.id,
+        prompt: row.prompt,
+        response: row.response,
+        messages: row.messages,
+      });
     }
   }
 
   merged.sort((a, b) => a.id - b.id);
 
-  return merged.map((row) => ({ user: row.prompt, assistant: row.response }));
+  return merged.map((row) => ({
+    user: row.prompt,
+    assistant: row.response,
+    messages: parseStoredMessages(row.messages),
+  }));
 }

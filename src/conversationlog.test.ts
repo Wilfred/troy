@@ -5,6 +5,8 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
   ConversationEntry,
+  StoredMessage,
+  buildContextEntries,
   formatConversationLog,
   loadConversationEntries,
   openDb,
@@ -122,6 +124,39 @@ describe("conversationlog", () => {
     const result = formatConversationLog(entries);
     assert.equal(result, "Prompt:\n  \n\nResponse:\n  \n");
   });
+
+  it("buildContextEntries expands history tool calls into the formatted log", () => {
+    const messages: StoredMessage[] = [
+      { role: "user", content: "Just pick a time" },
+      {
+        role: "assistant",
+        content: null,
+        toolCalls: [
+          {
+            id: "call_1",
+            type: "function",
+            function: {
+              name: "set_reminder",
+              arguments: '{"message":"x","remind_at":"2026-04-27T09:00:00"}',
+            },
+          },
+        ],
+      },
+      {
+        role: "tool",
+        toolCallId: "call_1",
+        content: "Reminder #13 set",
+      },
+      { role: "assistant", content: "Reminder set for tomorrow at 9am. ✓" },
+    ];
+    const entries = buildContextEntries("SYS", [
+      { user: "Just pick a time", assistant: "Reminder set", messages },
+    ]);
+    const formatted = formatConversationLog(entries);
+    assert.match(formatted, /History tool input name=set_reminder:/);
+    assert.match(formatted, /History tool output name=set_reminder:/);
+    assert.match(formatted, /Reminder #13 set/);
+  });
 });
 
 describe("loadConversationEntries", () => {
@@ -148,6 +183,7 @@ describe("loadConversationEntries", () => {
         response: "r",
         content: "Prompt:\n  p\n\nResponse:\n  r\n",
         entries: null,
+        messages: null,
         created_at: "2026-04-27 00:00:00",
       }),
       null,
@@ -238,9 +274,21 @@ describe("writeConversationLog and loadRecentHistory", () => {
     );
     const history = await loadRecentHistory(db);
     assert.equal(history.length, 3);
-    assert.deepEqual(history[0], { user: "q2", assistant: "a2" });
-    assert.deepEqual(history[1], { user: "q3", assistant: "a3" });
-    assert.deepEqual(history[2], { user: "q4", assistant: "a4" });
+    assert.deepEqual(history[0], {
+      user: "q2",
+      assistant: "a2",
+      messages: [],
+    });
+    assert.deepEqual(history[1], {
+      user: "q3",
+      assistant: "a3",
+      messages: [],
+    });
+    assert.deepEqual(history[2], {
+      user: "q4",
+      assistant: "a4",
+      messages: [],
+    });
     await db.destroy();
   });
 
@@ -256,12 +304,24 @@ describe("writeConversationLog and loadRecentHistory", () => {
 
     const cliHistory = await loadRecentHistory(db, "cli");
     assert.equal(cliHistory.length, 2);
-    assert.deepEqual(cliHistory[0], { user: "cli1", assistant: "r1" });
-    assert.deepEqual(cliHistory[1], { user: "cli2", assistant: "r3" });
+    assert.deepEqual(cliHistory[0], {
+      user: "cli1",
+      assistant: "r1",
+      messages: [],
+    });
+    assert.deepEqual(cliHistory[1], {
+      user: "cli2",
+      assistant: "r3",
+      messages: [],
+    });
 
     const discordHistory = await loadRecentHistory(db, "discord:123");
     assert.equal(discordHistory.length, 1);
-    assert.deepEqual(discordHistory[0], { user: "discord1", assistant: "r2" });
+    assert.deepEqual(discordHistory[0], {
+      user: "discord1",
+      assistant: "r2",
+      messages: [],
+    });
     await db.destroy();
   });
 
@@ -294,9 +354,21 @@ describe("writeConversationLog and loadRecentHistory", () => {
     // plus old3 from the "last 3" logic — 3 total after dedup.
     const history = await loadRecentHistory(db);
     assert.equal(history.length, 3);
-    assert.deepEqual(history[0], { user: "old3", assistant: "a3" });
-    assert.deepEqual(history[1], { user: "recent1", assistant: "a4" });
-    assert.deepEqual(history[2], { user: "recent2", assistant: "a5" });
+    assert.deepEqual(history[0], {
+      user: "old3",
+      assistant: "a3",
+      messages: [],
+    });
+    assert.deepEqual(history[1], {
+      user: "recent1",
+      assistant: "a4",
+      messages: [],
+    });
+    assert.deepEqual(history[2], {
+      user: "recent2",
+      assistant: "a5",
+      messages: [],
+    });
     await db.destroy();
   });
 
@@ -316,8 +388,56 @@ describe("writeConversationLog and loadRecentHistory", () => {
     // All 5 are within the last hour, so all should be included.
     const history = await loadRecentHistory(db);
     assert.equal(history.length, 5);
-    assert.deepEqual(history[0], { user: "q1", assistant: "a1" });
-    assert.deepEqual(history[4], { user: "q5", assistant: "a5" });
+    assert.deepEqual(history[0], {
+      user: "q1",
+      assistant: "a1",
+      messages: [],
+    });
+    assert.deepEqual(history[4], {
+      user: "q5",
+      assistant: "a5",
+      messages: [],
+    });
+    await db.destroy();
+  });
+
+  it("writeConversationLog persists structured messages and loadRecentHistory returns them", async () => {
+    const db = await openDb(dir);
+    const entries: ConversationEntry[] = [
+      { kind: "prompt", content: "remind me" },
+      {
+        kind: "tool_input",
+        name: "set_reminder",
+        content: '{"message":"x"}',
+      },
+      {
+        kind: "tool_output",
+        name: "set_reminder",
+        content: "ok",
+        duration_ms: 1,
+      },
+      { kind: "response", content: "Done" },
+    ];
+    const messages: StoredMessage[] = [
+      { role: "user", content: "remind me" },
+      {
+        role: "assistant",
+        content: null,
+        toolCalls: [
+          {
+            id: "call_1",
+            type: "function",
+            function: { name: "set_reminder", arguments: '{"message":"x"}' },
+          },
+        ],
+      },
+      { role: "tool", toolCallId: "call_1", content: "ok" },
+      { role: "assistant", content: "Done" },
+    ];
+    await writeConversationLog(db, entries, undefined, messages);
+    const history = await loadRecentHistory(db);
+    assert.equal(history.length, 1);
+    assert.deepEqual(history[0].messages, messages);
     await db.destroy();
   });
 
@@ -341,9 +461,21 @@ describe("writeConversationLog and loadRecentHistory", () => {
     // Even though none are in the last hour, the 3 most recent should still be returned.
     const history = await loadRecentHistory(db);
     assert.equal(history.length, 3);
-    assert.deepEqual(history[0], { user: "q2", assistant: "a2" });
-    assert.deepEqual(history[1], { user: "q3", assistant: "a3" });
-    assert.deepEqual(history[2], { user: "q4", assistant: "a4" });
+    assert.deepEqual(history[0], {
+      user: "q2",
+      assistant: "a2",
+      messages: [],
+    });
+    assert.deepEqual(history[1], {
+      user: "q3",
+      assistant: "a3",
+      messages: [],
+    });
+    assert.deepEqual(history[2], {
+      user: "q4",
+      assistant: "a4",
+      messages: [],
+    });
     await db.destroy();
   });
 });
