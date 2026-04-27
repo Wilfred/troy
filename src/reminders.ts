@@ -42,21 +42,33 @@ async function checkDueReminders(dataDir: string): Promise<DueReminder[]> {
 
 const POLL_INTERVAL_MS = 30_000;
 
+function pollDueReminders(
+  dataDir: string,
+  onDue: (reminders: DueReminder[]) => void,
+): void {
+  checkDueReminders(dataDir)
+    .then((due) => {
+      if (due.length > 0) onDue(due);
+    })
+    .catch((err: unknown) => {
+      log.error(
+        `Reminder scheduler error: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    });
+}
+
 export function startReminderScheduler(
   dataDir: string,
   onDue: (reminders: DueReminder[]) => void,
 ): NodeJS.Timeout {
-  const timer = setInterval(() => {
-    checkDueReminders(dataDir)
-      .then((due) => {
-        if (due.length > 0) onDue(due);
-      })
-      .catch((err: unknown) => {
-        log.error(
-          `Reminder scheduler error: ${err instanceof Error ? err.message : String(err)}`,
-        );
-      });
-  }, POLL_INTERVAL_MS);
+  // Check immediately so reminders that became due while Troy was offline
+  // fire on startup instead of waiting up to POLL_INTERVAL_MS.
+  pollDueReminders(dataDir, onDue);
+
+  const timer = setInterval(
+    () => pollDueReminders(dataDir, onDue),
+    POLL_INTERVAL_MS,
+  );
 
   // Don't keep the process alive just for the scheduler
   timer.unref();
