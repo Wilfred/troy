@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import {
   ConversationEntry,
   formatConversationLog,
+  loadConversationEntries,
   openDb,
   writeConversationLog,
   loadRecentHistory,
@@ -120,6 +121,62 @@ describe("conversationlog", () => {
     ];
     const result = formatConversationLog(entries);
     assert.equal(result, "Prompt:\n  \n\nResponse:\n  \n");
+  });
+});
+
+describe("loadConversationEntries", () => {
+  let dir = "";
+
+  beforeEach(() => {
+    dir = tmpDir();
+  });
+
+  afterEach(() => {
+    try {
+      rmSync(dir, { recursive: true });
+    } catch {
+      // ignore
+    }
+  });
+
+  it("returns null for legacy rows without entries", () => {
+    assert.equal(
+      loadConversationEntries({
+        id: 1,
+        source: "cli",
+        prompt: "p",
+        response: "r",
+        content: "Prompt:\n  p\n\nResponse:\n  r\n",
+        entries: null,
+        created_at: "2026-04-27 00:00:00",
+      }),
+      null,
+    );
+  });
+
+  it("round-trips a full conversation persisted to the database", async () => {
+    const entries: ConversationEntry[] = [
+      { kind: "system", content: "you are a helpful assistant" },
+      { kind: "skills", filenames: ["calendar.md"] },
+      { kind: "history", role: "user", content: "earlier question" },
+      { kind: "history", role: "assistant", content: "earlier answer" },
+      { kind: "prompt", content: "what's on my calendar?" },
+      { kind: "tool_input", name: "calendar", content: "get today" },
+      {
+        kind: "tool_output",
+        name: "calendar",
+        content: "Vet appointment\n\nDentist",
+        duration_ms: 150,
+      },
+      { kind: "response", content: "You have a vet appointment." },
+    ];
+    const db = await openDb(dir);
+    const id = await writeConversationLog(db, entries);
+    const row = await db
+      .getRepository(Conversation)
+      .findOneOrFail({ where: { id } });
+    assert.deepEqual(loadConversationEntries(row), entries);
+    await db.destroy();
   });
 });
 

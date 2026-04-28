@@ -64,6 +64,13 @@ export function formatConversationLog(entries: ConversationEntry[]): string {
   return entries.map(formatEntry).join("\n\n") + "\n";
 }
 
+export function loadConversationEntries(
+  row: ConversationRow,
+): ConversationEntry[] | null {
+  if (!row.entries) return null;
+  return JSON.parse(row.entries) as ConversationEntry[];
+}
+
 export function openDb(logDir: string): Promise<DataSource> {
   return openConversationDb(logDir);
 }
@@ -85,6 +92,7 @@ export async function writeConversationLog(
     prompt,
     response,
     content,
+    entries: JSON.stringify(entries),
   });
   await repo.save(row);
   return row.id;
@@ -96,6 +104,7 @@ export type ConversationRow = {
   prompt: string;
   response: string;
   content: string;
+  entries: string | null;
   created_at: string;
 };
 

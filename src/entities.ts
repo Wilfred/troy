@@ -18,6 +18,9 @@ export class Conversation {
   @Column({ type: "text" })
   content!: string;
 
+  @Column({ type: "text", nullable: true })
+  entries!: string | null;
+
   @Index()
   @Column({ type: "text", default: () => "(datetime('now'))" })
   created_at!: string;
