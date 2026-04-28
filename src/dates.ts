@@ -1,6 +1,6 @@
 /** Pre-computed date context and a date-range calculation tool. */
 
-import { DateTime } from "luxon";
+import { Temporal } from "@js-temporal/polyfill";
 
 export const LOCAL_TIMEZONE = "Europe/London";
 
@@ -70,7 +70,20 @@ function localParts(d: Date): LocalParts {
  * than the server's local time (which is typically UTC in deployments).
  */
 export function parseLocalDateTime(value: string): Date {
-  return DateTime.fromISO(value.trim(), { zone: LOCAL_TIMEZONE }).toJSDate();
+  const trimmed = value.trim();
+  try {
+    // Strings carrying their own offset (Z or ±HH:MM) parse directly to an instant.
+    return new Date(Temporal.Instant.from(trimmed).epochMilliseconds);
+  } catch {
+    // No offset — interpret the wall-clock components in LOCAL_TIMEZONE.
+  }
+  try {
+    const zdt =
+      Temporal.PlainDateTime.from(trimmed).toZonedDateTime(LOCAL_TIMEZONE);
+    return new Date(zdt.epochMilliseconds);
+  } catch {
+    return new Date(NaN);
+  }
 }
 
 /**
