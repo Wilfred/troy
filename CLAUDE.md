@@ -19,6 +19,7 @@ npm run typecheck      # Type-check without emitting (tsc --noEmit)
 npm run lint           # ESLint
 npm run format         # Prettier (write)
 npm run format:check   # Prettier (check only)
+npm run knip           # Check for unused exports and dependencies
 npm test               # Compile and run tests (node --test)
 npm start              # Run the CLI (REPL, or pass -- -p <prompt>)
 npm run discord        # Run as a Discord bot
@@ -27,7 +28,7 @@ npm run web            # Start the web UI
 
 CI runs typecheck, lint, and format:check on Node 22.
 
-Run `npx knip` before committing to check for unused exports and dependencies.
+Run `npm run knip` before committing to check for unused exports and dependencies.
 
 ## Architecture
 
