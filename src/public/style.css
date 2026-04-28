@@ -109,10 +109,15 @@ tr:hover td {
 }
 .detail-meta {
   display: flex;
-  gap: 1.5rem;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
   margin-bottom: 1rem;
   font-size: 0.85rem;
   color: #6b7280;
+  background: #fff;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 .detail-meta strong {
   color: #1a1a1a;
@@ -126,6 +131,113 @@ tr:hover td {
   border-radius: 6px;
   padding: 1rem;
   overflow-x: auto;
+}
+.entries {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.entry {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  border-left: 4px solid #d1d5db;
+}
+.entry-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+.entry-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #374151;
+}
+.entry-meta {
+  margin-left: auto;
+  color: #6b7280;
+  font-size: 0.75rem;
+}
+.entry-body {
+  margin: 0;
+  padding: 1rem;
+  white-space: pre-wrap;
+  font-family: ui-monospace, "Cascadia Code", "Fira Code", monospace;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  background: #fff;
+  overflow-x: auto;
+}
+.entry-body-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  font-family: inherit;
+  white-space: normal;
+}
+details.entry > summary.entry-header {
+  cursor: pointer;
+  user-select: none;
+  border-bottom: none;
+}
+details.entry[open] > summary.entry-header {
+  border-bottom: 1px solid #e5e7eb;
+}
+.entry-prompt {
+  border-left-color: #2563eb;
+}
+.entry-prompt .entry-header {
+  background: #eff6ff;
+}
+.entry-prompt .entry-label {
+  color: #1e40af;
+}
+.entry-response {
+  border-left-color: #16a34a;
+}
+.entry-response .entry-header {
+  background: #f0fdf4;
+}
+.entry-response .entry-label {
+  color: #15803d;
+}
+.entry-tool-input {
+  border-left-color: #d97706;
+}
+.entry-tool-input .entry-header {
+  background: #fffbeb;
+}
+.entry-tool-input .entry-label {
+  color: #92400e;
+}
+.entry-tool-output {
+  border-left-color: #0891b2;
+}
+.entry-tool-output .entry-header {
+  background: #ecfeff;
+}
+.entry-tool-output .entry-label {
+  color: #155e75;
+}
+.entry-system,
+.entry-history,
+.entry-skills {
+  border-left-color: #d1d5db;
+}
+.entry-system .entry-body,
+.entry-history .entry-body {
+  background: #f9fafb;
+}
+.badge-skill {
+  background: #fef3c7;
+  color: #92400e;
 }
 .back-link {
   display: inline-block;

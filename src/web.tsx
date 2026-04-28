@@ -13,6 +13,8 @@ import {
   listConversations,
   getConversation,
   countConversations,
+  loadConversationEntries,
+  ConversationEntry,
   ConversationRow,
 } from "./conversationlog.js";
 import { listPendingReminders } from "./reminders.js";
@@ -47,13 +49,10 @@ function formatDate(iso: string): string {
   return `${d.getUTCFullYear()}-${month}-${day} ${hours}:${minutes}`;
 }
 
-function extractToolNames(content: string): string[] {
+function extractToolNames(entries: ConversationEntry[]): string[] {
   const seen = new Set<string>();
-  const re = /^Tool Input name=(.+):$/gm;
-  let match: RegExpExecArray | null = re.exec(content);
-  while (match !== null) {
-    seen.add(match[1]);
-    match = re.exec(content);
+  for (const entry of entries) {
+    if (entry.kind === "tool_input") seen.add(entry.name);
   }
   return [...seen];
 }
@@ -67,8 +66,12 @@ function NavBar(): JSX.Element {
   );
 }
 
-function ToolBadges({ content }: { content: string }): JSX.Element {
-  const tools = extractToolNames(content);
+function ToolBadges({
+  entries,
+}: {
+  entries: ConversationEntry[];
+}): JSX.Element {
+  const tools = extractToolNames(entries);
   if (tools.length === 0) {
     return <span class="badge badge-no-tools">No tools invoked</span>;
   }
@@ -161,7 +164,97 @@ function renderListPage(
   return renderDocument("Troy Conversations", body);
 }
 
+function entryLabel(entry: ConversationEntry): string {
+  switch (entry.kind) {
+    case "system":
+      return "System prompt";
+    case "skills":
+      return "Skills";
+    case "history":
+      return `History — ${entry.role}`;
+    case "prompt":
+      return "Prompt";
+    case "response":
+      return "Response";
+    case "tool_input":
+      return "Tool input";
+    case "tool_output":
+      return "Tool output";
+  }
+}
+
+function EntryBlock({ entry }: { entry: ConversationEntry }): JSX.Element {
+  const label = entryLabel(entry);
+
+  if (entry.kind === "skills") {
+    return (
+      <div class="entry entry-skills">
+        <div class="entry-header">
+          <span class="entry-label">{label}</span>
+        </div>
+        <div class="entry-body entry-body-inline">
+          {entry.filenames.length === 0 ? (
+            <span class="badge badge-no-tools">none</span>
+          ) : (
+            <>
+              {entry.filenames.map((f) => (
+                <span class="badge badge-skill">{escapeHtml(f)}</span>
+              ))}
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (entry.kind === "system" || entry.kind === "history") {
+    const cls =
+      entry.kind === "history"
+        ? `entry entry-history entry-history-${entry.role}`
+        : "entry entry-system";
+    return (
+      <details class={cls}>
+        <summary class="entry-header">
+          <span class="entry-label">{label}</span>
+        </summary>
+        <pre class="entry-body">{escapeHtml(entry.content)}</pre>
+      </details>
+    );
+  }
+
+  if (entry.kind === "tool_input" || entry.kind === "tool_output") {
+    const cls =
+      entry.kind === "tool_input"
+        ? "entry entry-tool-input"
+        : "entry entry-tool-output";
+    return (
+      <div class={cls}>
+        <div class="entry-header">
+          <span class="entry-label">{label}</span>
+          <span class="badge badge-tool">{escapeHtml(entry.name)}</span>
+          {entry.kind === "tool_output" && (
+            <span class="entry-meta">{entry.duration_ms}ms</span>
+          )}
+        </div>
+        <pre class="entry-body">{escapeHtml(entry.content)}</pre>
+      </div>
+    );
+  }
+
+  const cls =
+    entry.kind === "prompt" ? "entry entry-prompt" : "entry entry-response";
+  return (
+    <div class={cls}>
+      <div class="entry-header">
+        <span class="entry-label">{label}</span>
+      </div>
+      <pre class="entry-body">{escapeHtml(entry.content)}</pre>
+    </div>
+  );
+}
+
 function renderDetailPage(c: ConversationRow): string {
+  const entries = loadConversationEntries(c);
   const body = (
     <>
       <NavBar />
@@ -169,22 +262,33 @@ function renderDetailPage(c: ConversationRow): string {
         ← All conversations
       </a>
       <h1>Conversation C{c.id}</h1>
-      <div class="detail-card">
-        <div class="detail-meta">
-          <div>
-            <strong>ID:</strong> C{c.id}
-          </div>
-          <div>
-            <strong>Source:</strong> <SourceBadge source={c.source} />
-          </div>
-          <div>
-            <strong>Date:</strong> {formatDate(c.created_at)}
-          </div>
+      <div class="detail-meta">
+        <div>
+          <strong>ID:</strong> C{c.id}
         </div>
-        <div class="detail-tools">
-          <strong>Tools:</strong> <ToolBadges content={c.content} />
+        <div>
+          <strong>Source:</strong> <SourceBadge source={c.source} />
         </div>
-        <div class="detail-content">{escapeHtml(c.content)}</div>
+        <div>
+          <strong>Date:</strong> {formatDate(c.created_at)}
+        </div>
+        {entries && (
+          <div>
+            <strong>Tools:</strong> <ToolBadges entries={entries} />
+          </div>
+        )}
+      </div>
+      <div class="entries">
+        {entries ? (
+          entries.map((entry) => <EntryBlock entry={entry} />)
+        ) : (
+          <div class="entry entry-raw">
+            <div class="entry-header">
+              <span class="entry-label">Legacy log</span>
+            </div>
+            <pre class="entry-body">{escapeHtml(c.content)}</pre>
+          </div>
+        )}
       </div>
     </>
   ) as string;
