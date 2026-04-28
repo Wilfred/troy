@@ -208,23 +208,17 @@ details.entry[open] > summary.entry-header {
 .entry-response .entry-label {
   color: #15803d;
 }
-.entry-tool-input {
+.entry-tool-input,
+.entry-tool-output {
   border-left-color: #d97706;
 }
-.entry-tool-input .entry-header {
+.entry-tool-input .entry-header,
+.entry-tool-output .entry-header {
   background: #fffbeb;
 }
-.entry-tool-input .entry-label {
-  color: #92400e;
-}
-.entry-tool-output {
-  border-left-color: #0891b2;
-}
-.entry-tool-output .entry-header {
-  background: #ecfeff;
-}
+.entry-tool-input .entry-label,
 .entry-tool-output .entry-label {
-  color: #155e75;
+  color: #92400e;
 }
 .entry-system,
 .entry-history,
