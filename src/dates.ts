@@ -1,5 +1,7 @@
 /** Pre-computed date context and a date-range calculation tool. */
 
+import { DateTime } from "luxon";
+
 export const LOCAL_TIMEZONE = "Europe/London";
 
 function startOfWeek(date: Date): Date {
@@ -68,38 +70,7 @@ function localParts(d: Date): LocalParts {
  * than the server's local time (which is typically UTC in deployments).
  */
 export function parseLocalDateTime(value: string): Date {
-  const trimmed = value.trim();
-  if (/[zZ]$/.test(trimmed) || /[+-]\d{2}:?\d{2}$/.test(trimmed)) {
-    return new Date(trimmed);
-  }
-
-  const m =
-    /^(\d{4})-(\d{2})-(\d{2})[T ](\d{1,2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?$/.exec(
-      trimmed,
-    );
-  if (!m) return new Date(trimmed);
-
-  const desiredUtc = Date.UTC(
-    Number(m[1]),
-    Number(m[2]) - 1,
-    Number(m[3]),
-    Number(m[4]),
-    Number(m[5]),
-    Number(m[6] ?? 0),
-  );
-  // Compute the local-zone offset at the desired wall-clock instant by
-  // probing what `Europe/London` would show for `desiredUtc`.
-  const probe = localParts(new Date(desiredUtc));
-  const probeAsUtc = Date.UTC(
-    probe.year,
-    probe.month - 1,
-    probe.day,
-    probe.hour,
-    probe.minute,
-    probe.second,
-  );
-  const offsetMs = probeAsUtc - desiredUtc;
-  return new Date(desiredUtc - offsetMs);
+  return DateTime.fromISO(value.trim(), { zone: LOCAL_TIMEZONE }).toJSDate();
 }
 
 /**
