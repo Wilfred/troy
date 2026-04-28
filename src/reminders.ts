@@ -2,6 +2,7 @@ import { LessThanOrEqual } from "typeorm";
 import { Reminder } from "./entities.js";
 import { openReminderDb } from "./datasource.js";
 import { log } from "./logger.js";
+import { LOCAL_TIMEZONE, parseLocalDateTime } from "./dates.js";
 
 export interface DueReminder {
   id: number;
@@ -82,6 +83,7 @@ export const REMINDER_TOOLS = [
             type: "string",
             description:
               "When to deliver the reminder, as an ISO 8601 datetime string (e.g. '2025-03-15T14:30:00'). Use 24-hour format. " +
+              `Datetimes without a timezone designator are interpreted as ${LOCAL_TIMEZONE} wall-clock time, matching the "current time" in the system context. ` +
               "Never ask the user to clarify the time — always pick a sensible default and proceed. " +
               "For vague times of day, default to: morning = 09:00, noon/midday = 12:00, afternoon = 14:00, evening = 19:00, night = 21:00. " +
               "When the user gives an ambiguous time like 'at 9' without specifying AM/PM, choose the next upcoming occurrence — " +
@@ -134,7 +136,7 @@ async function handleSetReminder(
     remind_at: string;
   };
 
-  const remindAt = new Date(args.remind_at);
+  const remindAt = parseLocalDateTime(args.remind_at);
   if (isNaN(remindAt.getTime())) {
     return "Error: invalid remind_at datetime. Use ISO 8601 format (e.g. '2025-03-15T14:30:00').";
   }

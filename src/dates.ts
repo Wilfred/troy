@@ -1,5 +1,7 @@
 /** Pre-computed date context and a date-range calculation tool. */
 
+export const LOCAL_TIMEZONE = "Europe/London";
+
 function startOfWeek(date: Date): Date {
   const d = new Date(date);
   const day = d.getDay(); // 0 = Sunday
@@ -21,34 +23,106 @@ function fmtDate(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-function weekdayName(date: Date): string {
-  return new Intl.DateTimeFormat("en-GB", { weekday: "long" }).format(date);
+interface LocalParts {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+  weekday: string;
+  timeZoneName: string;
+}
+
+function localParts(d: Date): LocalParts {
+  const fmt = new Intl.DateTimeFormat("en-GB", {
+    timeZone: LOCAL_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+    weekday: "long",
+    timeZoneName: "short",
+  });
+  const obj = Object.fromEntries(
+    fmt.formatToParts(d).map((p) => [p.type, p.value]),
+  );
+  return {
+    year: Number(obj.year),
+    month: Number(obj.month),
+    day: Number(obj.day),
+    hour: obj.hour === "24" ? 0 : Number(obj.hour),
+    minute: Number(obj.minute),
+    second: Number(obj.second),
+    weekday: obj.weekday,
+    timeZoneName: obj.timeZoneName,
+  };
+}
+
+/**
+ * Parse an ISO 8601 datetime string. If it has no timezone designator, the
+ * components are interpreted as wall-clock time in `LOCAL_TIMEZONE` rather
+ * than the server's local time (which is typically UTC in deployments).
+ */
+export function parseLocalDateTime(value: string): Date {
+  const trimmed = value.trim();
+  if (/[zZ]$/.test(trimmed) || /[+-]\d{2}:?\d{2}$/.test(trimmed)) {
+    return new Date(trimmed);
+  }
+
+  const m =
+    /^(\d{4})-(\d{2})-(\d{2})[T ](\d{1,2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?$/.exec(
+      trimmed,
+    );
+  if (!m) return new Date(trimmed);
+
+  const desiredUtc = Date.UTC(
+    Number(m[1]),
+    Number(m[2]) - 1,
+    Number(m[3]),
+    Number(m[4]),
+    Number(m[5]),
+    Number(m[6] ?? 0),
+  );
+  // Compute the local-zone offset at the desired wall-clock instant by
+  // probing what `Europe/London` would show for `desiredUtc`.
+  const probe = localParts(new Date(desiredUtc));
+  const probeAsUtc = Date.UTC(
+    probe.year,
+    probe.month - 1,
+    probe.day,
+    probe.hour,
+    probe.minute,
+    probe.second,
+  );
+  const offsetMs = probeAsUtc - desiredUtc;
+  return new Date(desiredUtc - offsetMs);
 }
 
 /**
  * Build a date-context block for the system prompt so the LLM doesn't have to
- * do date arithmetic itself.
+ * do date arithmetic itself. Times are reported in `LOCAL_TIMEZONE`.
  *
  * @param now - override for testing; defaults to `new Date()`.
  */
 export function dateTimeContext(now?: Date): string {
   const today = now ?? new Date();
-  const todayLocal = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate(),
-  );
+  const lp = localParts(today);
+  const todayLocal = new Date(lp.year, lp.month - 1, lp.day);
 
   const monday = startOfWeek(todayLocal);
   const sunday = addDays(monday, 6);
   const nextMonday = addDays(monday, 7);
   const nextSunday = addDays(monday, 13);
 
-  const hours = String(today.getHours()).padStart(2, "0");
-  const minutes = String(today.getMinutes()).padStart(2, "0");
+  const hours = String(lp.hour).padStart(2, "0");
+  const minutes = String(lp.minute).padStart(2, "0");
 
   return [
-    `Today is ${weekdayName(todayLocal)}, ${fmtDate(todayLocal)}. The current time is ${hours}:${minutes}.`,
+    `Today is ${lp.weekday}, ${fmtDate(todayLocal)}. The current time is ${hours}:${minutes} ${lp.timeZoneName} (${LOCAL_TIMEZONE}).`,
     `This week: Monday ${fmtDate(monday)} to Sunday ${fmtDate(sunday)}.`,
     `Next week: Monday ${fmtDate(nextMonday)} to Sunday ${fmtDate(nextSunday)}.`,
   ].join("\n");

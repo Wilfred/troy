@@ -1,6 +1,10 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { dateTimeContext, computeDateRange } from "./dates.js";
+import {
+  dateTimeContext,
+  computeDateRange,
+  parseLocalDateTime,
+} from "./dates.js";
 
 describe("dateTimeContext", () => {
   it("returns correct week boundaries for a Monday", () => {
@@ -90,5 +94,39 @@ describe("computeDateRange", () => {
     const end = new Date(range.end);
     const diff = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
     assert.equal(diff, 13);
+  });
+});
+
+describe("parseLocalDateTime", () => {
+  it("treats a naive summer datetime as BST (UTC+1)", () => {
+    // 2026-07-04 is in BST. 15:00 BST = 14:00 UTC.
+    const d = parseLocalDateTime("2026-07-04T15:00:00");
+    assert.equal(d.toISOString(), "2026-07-04T14:00:00.000Z");
+  });
+
+  it("treats a naive winter datetime as GMT (UTC+0)", () => {
+    // 2026-12-15 is in GMT. 15:00 GMT = 15:00 UTC.
+    const d = parseLocalDateTime("2026-12-15T15:00:00");
+    assert.equal(d.toISOString(), "2026-12-15T15:00:00.000Z");
+  });
+
+  it("respects an explicit Z designator", () => {
+    const d = parseLocalDateTime("2026-07-04T15:00:00Z");
+    assert.equal(d.toISOString(), "2026-07-04T15:00:00.000Z");
+  });
+
+  it("respects an explicit offset designator", () => {
+    const d = parseLocalDateTime("2026-07-04T15:00:00+02:00");
+    assert.equal(d.toISOString(), "2026-07-04T13:00:00.000Z");
+  });
+
+  it("accepts datetime without seconds", () => {
+    const d = parseLocalDateTime("2026-07-04T15:00");
+    assert.equal(d.toISOString(), "2026-07-04T14:00:00.000Z");
+  });
+
+  it("returns an invalid Date for unparsable input", () => {
+    const d = parseLocalDateTime("not a datetime");
+    assert.ok(isNaN(d.getTime()));
   });
 });
