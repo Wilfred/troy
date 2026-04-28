@@ -1,5 +1,6 @@
 import { calendar_v3, google } from "googleapis";
 import { log } from "./logger.js";
+import { LOCAL_TIMEZONE } from "./dates.js";
 
 function assertCalendarWritesEnabled(): void {
   if (!process.env.GOOGLE_CALENDAR_ALLOW_WRITES) {
@@ -50,7 +51,7 @@ export function formatDateWithDay(dateStr: string): string {
 
   const parts = Object.fromEntries(
     new Intl.DateTimeFormat("en-GB", {
-      timeZone: "Europe/London",
+      timeZone: LOCAL_TIMEZONE,
       weekday: "long",
       year: "numeric",
       month: "2-digit",
@@ -88,7 +89,7 @@ function makeEventTime(
   if (isDateOnly(value)) {
     return { date: value };
   }
-  return { dateTime: value, timeZone: timezone ?? "UTC" };
+  return { dateTime: value, timeZone: timezone ?? LOCAL_TIMEZONE };
 }
 
 async function listCalendarEvents(args: {
@@ -274,13 +275,11 @@ export const CALENDAR_TOOLS = [
           },
           start: {
             type: "string",
-            description:
-              "Start time in ISO 8601 format (e.g. '2024-01-15T10:00:00'). For all-day events use a date: '2024-01-15'.",
+            description: `Start time in ISO 8601 format (e.g. '2024-01-15T10:00:00'). Datetimes without a timezone designator are interpreted in the event's timezone (default: ${LOCAL_TIMEZONE}). For all-day events use a date: '2024-01-15'.`,
           },
           end: {
             type: "string",
-            description:
-              "End time in ISO 8601 format (e.g. '2024-01-15T11:00:00'). For all-day events use a date: '2024-01-16'.",
+            description: `End time in ISO 8601 format (e.g. '2024-01-15T11:00:00'). Datetimes without a timezone designator are interpreted in the event's timezone (default: ${LOCAL_TIMEZONE}). For all-day events use a date: '2024-01-16'.`,
           },
           description: {
             type: "string",
@@ -297,8 +296,7 @@ export const CALENDAR_TOOLS = [
           },
           timezone: {
             type: "string",
-            description:
-              "Timezone for the event (e.g. 'America/New_York'). Defaults to UTC.",
+            description: `Timezone for the event (e.g. 'America/New_York'). Defaults to ${LOCAL_TIMEZONE}.`,
           },
         },
         required: ["summary", "start", "end"],
@@ -325,11 +323,11 @@ export const CALENDAR_TOOLS = [
           },
           start: {
             type: "string",
-            description: "New start time in ISO 8601 format.",
+            description: `New start time in ISO 8601 format. Datetimes without a timezone designator are interpreted in the event's timezone (default: ${LOCAL_TIMEZONE}).`,
           },
           end: {
             type: "string",
-            description: "New end time in ISO 8601 format.",
+            description: `New end time in ISO 8601 format. Datetimes without a timezone designator are interpreted in the event's timezone (default: ${LOCAL_TIMEZONE}).`,
           },
           description: {
             type: "string",
@@ -346,7 +344,7 @@ export const CALENDAR_TOOLS = [
           },
           timezone: {
             type: "string",
-            description: "Timezone for the event (e.g. 'America/New_York').",
+            description: `Timezone for the event (e.g. 'America/New_York'). Defaults to ${LOCAL_TIMEZONE}.`,
           },
         },
         required: ["event_id"],
