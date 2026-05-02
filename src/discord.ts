@@ -13,6 +13,7 @@ import { MODEL } from "./consts.js";
 import { TRUSTED_TOOLS, UNTRUSTED_TOOLS, handleToolCall } from "./tools.js";
 import {
   ConversationEntry,
+  StoredMessage,
   openDb,
   writeConversationLog,
   loadRecentHistory,
@@ -344,9 +345,16 @@ async function handleDiscordMessage(
     const systemPrompt = buildSystemPrompt(dataDir, skillContents);
     const messages: ChatMessage[] = [{ role: "system", content: systemPrompt }];
     for (const exchange of history) {
-      messages.push({ role: "user", content: exchange.user });
-      messages.push({ role: "assistant", content: exchange.assistant });
+      if (exchange.messages.length > 0) {
+        for (const m of exchange.messages) {
+          messages.push(m as ChatMessage);
+        }
+      } else {
+        messages.push({ role: "user", content: exchange.user });
+        messages.push({ role: "assistant", content: exchange.assistant });
+      }
     }
+    const turnStart = messages.length;
     messages.push({ role: "user", content: prompt });
 
     const toolsUsed: string[] = [];
@@ -374,8 +382,15 @@ async function handleDiscordMessage(
     }
 
     conversationLog.push({ kind: "response", content });
+    messages.push({ role: "assistant", content });
 
-    const chatId = await writeConversationLog(db, conversationLog, source);
+    const turnMessages = messages.slice(turnStart) as StoredMessage[];
+    const chatId = await writeConversationLog(
+      db,
+      conversationLog,
+      source,
+      turnMessages,
+    );
 
     const formatted = formatTablesForDiscord(content);
 
