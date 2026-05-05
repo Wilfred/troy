@@ -70,6 +70,13 @@ tr:hover td {
   font-size: 0.85rem;
   white-space: nowrap;
 }
+.duration-col {
+  width: 5rem;
+  color: #6b7280;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
 .prompt-col {
   max-width: 0;
   overflow: hidden;

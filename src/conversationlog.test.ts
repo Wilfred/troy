@@ -10,6 +10,7 @@ import {
   formatConversationLog,
   loadConversationEntries,
   openDb,
+  sumToolDurationMs,
   writeConversationLog,
   loadRecentHistory,
 } from "./conversationlog.js";
@@ -184,6 +185,7 @@ describe("loadConversationEntries", () => {
         content: "Prompt:\n  p\n\nResponse:\n  r\n",
         entries: null,
         messages: null,
+        total_duration_ms: null,
         created_at: "2026-04-27 00:00:00",
       }),
       null,
@@ -398,6 +400,60 @@ describe("writeConversationLog and loadRecentHistory", () => {
       assistant: "a5",
       messages: [],
     });
+    await db.destroy();
+  });
+
+  it("sumToolDurationMs sums durations across tool_output entries", () => {
+    const entries: ConversationEntry[] = [
+      { kind: "prompt", content: "p" },
+      { kind: "tool_input", name: "a", content: "{}" },
+      { kind: "tool_output", name: "a", content: "ok", duration_ms: 100 },
+      { kind: "tool_input", name: "b", content: "{}" },
+      { kind: "tool_output", name: "b", content: "ok", duration_ms: 250 },
+      { kind: "response", content: "done" },
+    ];
+    assert.equal(sumToolDurationMs(entries), 350);
+  });
+
+  it("sumToolDurationMs returns 0 when no tool_output entries", () => {
+    const entries: ConversationEntry[] = [
+      { kind: "prompt", content: "p" },
+      { kind: "response", content: "r" },
+    ];
+    assert.equal(sumToolDurationMs(entries), 0);
+  });
+
+  it("writeConversationLog persists total_duration_ms when provided", async () => {
+    const db = await openDb(dir);
+    const entries: ConversationEntry[] = [
+      { kind: "prompt", content: "hi" },
+      { kind: "response", content: "hello" },
+    ];
+    const id = await writeConversationLog(
+      db,
+      entries,
+      undefined,
+      undefined,
+      1234,
+    );
+    const row = await db
+      .getRepository(Conversation)
+      .findOneOrFail({ where: { id } });
+    assert.equal(row.total_duration_ms, 1234);
+    await db.destroy();
+  });
+
+  it("writeConversationLog stores null total_duration_ms when omitted", async () => {
+    const db = await openDb(dir);
+    const entries: ConversationEntry[] = [
+      { kind: "prompt", content: "hi" },
+      { kind: "response", content: "hello" },
+    ];
+    const id = await writeConversationLog(db, entries);
+    const row = await db
+      .getRepository(Conversation)
+      .findOneOrFail({ where: { id } });
+    assert.equal(row.total_duration_ms, null);
     await db.destroy();
   });
 

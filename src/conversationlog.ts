@@ -161,6 +161,7 @@ export async function writeConversationLog(
   entries: ConversationEntry[],
   source?: string,
   messages?: StoredMessage[],
+  totalDurationMs?: number,
 ): Promise<number> {
   const promptEntry = entries.find((e) => e.kind === "prompt");
   const responseEntries = entries.filter((e) => e.kind === "response");
@@ -176,6 +177,7 @@ export async function writeConversationLog(
     content,
     entries: JSON.stringify(entries),
     messages: messages ? JSON.stringify(messages) : null,
+    total_duration_ms: totalDurationMs ?? null,
   });
   await repo.save(row);
   return row.id;
@@ -189,8 +191,19 @@ export type ConversationRow = {
   content: string;
   entries: string | null;
   messages: string | null;
+  total_duration_ms: number | null;
   created_at: string;
 };
+
+export function sumToolDurationMs(entries: ConversationEntry[]): number {
+  let total = 0;
+  for (const entry of entries) {
+    if (entry.kind === "tool_output") {
+      total += entry.duration_ms;
+    }
+  }
+  return total;
+}
 
 export async function listConversations(
   ds: DataSource,
