@@ -17,6 +17,7 @@ export default tseslint.config(
         },
       ],
       "init-declarations": ["error", "always"],
+      "object-shorthand": ["error", "always"],
       "no-restricted-syntax": [
         "error",
         {
