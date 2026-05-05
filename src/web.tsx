@@ -14,6 +14,7 @@ import {
   getConversation,
   countConversations,
   loadConversationEntries,
+  sumToolDurationMs,
   ConversationEntry,
   ConversationRow,
 } from "./conversationlog.js";
@@ -47,6 +48,15 @@ function formatDate(iso: string): string {
   const hours = String(d.getUTCHours()).padStart(2, "0");
   const minutes = String(d.getUTCMinutes()).padStart(2, "0");
   return `${d.getUTCFullYear()}-${month}-${day} ${hours}:${minutes}`;
+}
+
+function formatDuration(ms: number): string {
+  if (ms < 1000) return `${ms}ms`;
+  const seconds = ms / 1000;
+  if (seconds < 60) return `${seconds.toFixed(1)}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.round(seconds - minutes * 60);
+  return `${minutes}m ${remainingSeconds}s`;
 }
 
 function extractToolNames(entries: ConversationEntry[]): string[] {
@@ -126,6 +136,7 @@ function renderListPage(
           <tr>
             <th>ID</th>
             <th>Date</th>
+            <th>Time</th>
             <th>Prompt</th>
           </tr>
         </thead>
@@ -137,6 +148,11 @@ function renderListPage(
                   <a href={`/conversation/${c.id}`}>C{c.id}</a>
                 </td>
                 <td class="date-col">{formatDate(c.created_at)}</td>
+                <td class="duration-col">
+                  {c.total_duration_ms != null
+                    ? formatDuration(c.total_duration_ms)
+                    : "—"}
+                </td>
                 <td class="prompt-col">
                   {escapeHtml(truncate(c.prompt, 120))}
                 </td>
@@ -144,7 +160,7 @@ function renderListPage(
             ))
           ) : (
             <tr>
-              <td colspan="3">No conversations yet.</td>
+              <td colspan="4">No conversations yet.</td>
             </tr>
           )}
         </tbody>
@@ -278,6 +294,7 @@ function EntryBlock({ entry }: { entry: ConversationEntry }): JSX.Element {
 
 function renderDetailPage(c: ConversationRow): string {
   const entries = loadConversationEntries(c);
+  const toolDurationMs = entries ? sumToolDurationMs(entries) : 0;
   const body = (
     <>
       <NavBar />
@@ -295,6 +312,16 @@ function renderDetailPage(c: ConversationRow): string {
         <div>
           <strong>Date:</strong> {formatDate(c.created_at)}
         </div>
+        {c.total_duration_ms != null && (
+          <div>
+            <strong>Total time:</strong> {formatDuration(c.total_duration_ms)}
+          </div>
+        )}
+        {entries && toolDurationMs > 0 && (
+          <div>
+            <strong>Tool time:</strong> {formatDuration(toolDurationMs)}
+          </div>
+        )}
         {entries && (
           <div>
             <strong>Tools:</strong> <ToolBadges entries={entries} />

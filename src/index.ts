@@ -374,6 +374,7 @@ async function replAction(opts: {
     const turnStart = messages.length;
     messages.push({ role: "user", content: trimmed });
 
+    const turnStartTime = Date.now();
     let content = "";
     try {
       content = await chat(
@@ -397,6 +398,7 @@ async function replAction(opts: {
       continue;
     }
 
+    const totalDurationMs = Date.now() - turnStartTime;
     conversationLog.push({ kind: "response", content });
     messages.push({ role: "assistant", content });
 
@@ -407,6 +409,7 @@ async function replAction(opts: {
       conversationLog,
       undefined,
       turnMessages,
+      totalDurationMs,
     );
     log.info(`Saved exchange as C${chatId}`);
 
@@ -512,6 +515,7 @@ async function runAction(opts: {
     { kind: "prompt", content: opts.prompt },
   ];
   log.info("Starting trusted agent");
+  const turnStartTime = Date.now();
   const content = await chat(
     client,
     model,
@@ -527,6 +531,7 @@ async function runAction(opts: {
     process.exit(1);
   }
 
+  const totalDurationMs = Date.now() - turnStartTime;
   conversationLog.push({ kind: "response", content });
   messages.push({ role: "assistant", content });
 
@@ -536,6 +541,7 @@ async function runAction(opts: {
     conversationLog,
     undefined,
     turnMessages,
+    totalDurationMs,
   );
 
   await reflectOnNotes(client, model, notesPath, opts.prompt, content);

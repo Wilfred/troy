@@ -365,6 +365,7 @@ async function handleDiscordMessage(
       { kind: "prompt", content: prompt },
     ];
 
+    const turnStartTime = Date.now();
     const content = await chatLoop(
       openrouter,
       model,
@@ -381,6 +382,7 @@ async function handleDiscordMessage(
       return;
     }
 
+    const totalDurationMs = Date.now() - turnStartTime;
     conversationLog.push({ kind: "response", content });
     messages.push({ role: "assistant", content });
 
@@ -390,6 +392,7 @@ async function handleDiscordMessage(
       conversationLog,
       source,
       turnMessages,
+      totalDurationMs,
     );
 
     const formatted = formatTablesForDiscord(content);

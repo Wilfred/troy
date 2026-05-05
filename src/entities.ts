@@ -27,6 +27,10 @@ export class Conversation {
   @Column({ type: "text", nullable: true })
   messages!: string | null;
 
+  // Wall-clock time in milliseconds from prompt receipt to final response.
+  @Column({ type: "integer", nullable: true })
+  total_duration_ms!: number | null;
+
   @Index()
   @Column({ type: "text", default: () => "(datetime('now'))" })
   created_at!: string;
