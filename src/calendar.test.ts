@@ -1,6 +1,10 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { formatDateWithDay, isExternalInvite } from "./calendar.js";
+import {
+  formatDateWithDay,
+  isExternalInvite,
+  toApiTimeBound,
+} from "./calendar.js";
 
 describe("formatDateWithDay", () => {
   it("formats a date-only string with the weekday", () => {
@@ -32,6 +36,39 @@ describe("formatDateWithDay", () => {
 
   it("returns an unparsable string unchanged", () => {
     assert.equal(formatDateWithDay("Unknown"), "Unknown");
+  });
+});
+
+describe("toApiTimeBound", () => {
+  it("normalizes a date-only string to start-of-day UTC instant", () => {
+    // 2026-05-09 is summer (BST = UTC+1), so 00:00 BST = 23:00 UTC the day before
+    assert.equal(toApiTimeBound("2026-05-09"), "2026-05-08T23:00:00.000Z");
+  });
+
+  it("normalizes a naive datetime to a UTC instant in the local timezone", () => {
+    // 2026-05-09T23:59:59 BST = 22:59:59 UTC
+    assert.equal(
+      toApiTimeBound("2026-05-09T23:59:59"),
+      "2026-05-09T22:59:59.000Z",
+    );
+  });
+
+  it("preserves a datetime that already has a Z offset", () => {
+    assert.equal(
+      toApiTimeBound("2026-05-09T12:00:00Z"),
+      "2026-05-09T12:00:00.000Z",
+    );
+  });
+
+  it("preserves a datetime with an explicit offset", () => {
+    assert.equal(
+      toApiTimeBound("2026-05-09T12:00:00+02:00"),
+      "2026-05-09T10:00:00.000Z",
+    );
+  });
+
+  it("throws on an unparsable value", () => {
+    assert.throws(() => toApiTimeBound("not a date"));
   });
 });
 
