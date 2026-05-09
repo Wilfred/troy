@@ -1,6 +1,6 @@
 import { calendar_v3, google } from "googleapis";
 import { log } from "./logger.js";
-import { LOCAL_TIMEZONE } from "./dates.js";
+import { LOCAL_TIMEZONE, parseLocalDateTime } from "./dates.js";
 
 function assertCalendarWritesEnabled(): void {
   if (!process.env.GOOGLE_CALENDAR_ALLOW_WRITES) {
@@ -92,6 +92,18 @@ function makeEventTime(
   return { dateTime: value, timeZone: timezone ?? LOCAL_TIMEZONE };
 }
 
+// Google Calendar's events.list requires RFC 3339 timestamps with an offset.
+// Accept date-only and naive datetimes from the LLM by interpreting them in
+// LOCAL_TIMEZONE.
+export function toApiTimeBound(value: string): string {
+  const normalized = isDateOnly(value) ? `${value}T00:00:00` : value;
+  const parsed = parseLocalDateTime(normalized);
+  if (isNaN(parsed.getTime())) {
+    throw new Error(`Invalid date/time: ${value}`);
+  }
+  return parsed.toISOString();
+}
+
 async function listCalendarEvents(args: {
   time_min?: string;
   time_max?: string;
@@ -100,10 +112,12 @@ async function listCalendarEvents(args: {
 }): Promise<string> {
   const calendar = createGoogleCalendarClient();
   const calendarId = args.calendar_id ?? defaultCalendarId();
-  const timeMin = args.time_min ?? new Date().toISOString();
-  const timeMax =
-    args.time_max ??
-    new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const timeMin = args.time_min
+    ? toApiTimeBound(args.time_min)
+    : new Date().toISOString();
+  const timeMax = args.time_max
+    ? toApiTimeBound(args.time_max)
+    : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
   const maxResults = args.max_results ?? 10;
 
   const response = await calendar.events.list({
