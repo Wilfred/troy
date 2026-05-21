@@ -35,6 +35,27 @@ const STYLE_CSS = readFileSync(
 
 const PAGE_SIZE = 50;
 
+const GITHUB_REPO_URL = "https://github.com/Wilfred/troy";
+
+function renderCommitMessage(message: string): JSX.Element {
+  const parts: (string | JSX.Element)[] = [];
+  const re = /#(\d+)/g;
+  let lastIndex = 0;
+  let m: RegExpExecArray | null = re.exec(message);
+  while (m !== null) {
+    if (m.index > lastIndex) {
+      parts.push(escapeHtml(message.slice(lastIndex, m.index)));
+    }
+    parts.push(<a href={`${GITHUB_REPO_URL}/pull/${m[1]}`}>{`#${m[1]}`}</a>);
+    lastIndex = m.index + m[0].length;
+    m = re.exec(message);
+  }
+  if (lastIndex < message.length) {
+    parts.push(escapeHtml(message.slice(lastIndex)));
+  }
+  return <>{parts}</>;
+}
+
 function truncate(text: string, maxLen: number): string {
   if (text.length <= maxLen) return text;
   return text.slice(0, maxLen) + "…";
@@ -549,7 +570,11 @@ function renderUptimePage(): string {
                 <td>
                   <strong>Hash</strong>
                 </td>
-                <td>{commit.hash}</td>
+                <td>
+                  <a href={`${GITHUB_REPO_URL}/commit/${commit.hash}`}>
+                    {commit.hash}
+                  </a>
+                </td>
               </tr>
               <tr>
                 <td>
@@ -567,7 +592,7 @@ function renderUptimePage(): string {
                 <td>
                   <strong>Message</strong>
                 </td>
-                <td>{escapeHtml(commit.message)}</td>
+                <td>{renderCommitMessage(commit.message)}</td>
               </tr>
             </tbody>
           </table>
