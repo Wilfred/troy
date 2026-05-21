@@ -311,3 +311,34 @@ details.entry[open] > summary.entry-header {
 .source-col {
   width: 6rem;
 }
+.reminder-section-heading {
+  margin: 1.5rem 0 0.75rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+.reminder-section-heading.reminder-section-past {
+  color: #6b7280;
+  font-weight: 500;
+}
+.reminder-future td {
+  font-weight: 500;
+  color: #1a1a1a;
+}
+.reminder-future td.date-col {
+  color: #1a1a1a;
+  font-weight: 600;
+}
+.reminder-future {
+  border-left: 3px solid #2563eb;
+}
+.reminder-past td {
+  color: #9ca3af;
+  font-weight: 400;
+}
+.reminder-past td.reminder-msg-col {
+  color: #6b7280;
+}
+.reminder-past-table {
+  opacity: 0.85;
+}

@@ -18,7 +18,7 @@ import {
   ConversationEntry,
   ConversationRow,
 } from "./conversationlog.js";
-import { listPendingReminders } from "./reminders.js";
+import { listReminders, ReminderRow } from "./reminders.js";
 import {
   PROCESS_START_TIME,
   formatRelative,
@@ -367,13 +367,42 @@ function renderDetailPage(c: ConversationRow): string {
   return renderDocument(`C${c.id} – Troy`, body);
 }
 
+function ReminderRowView({
+  reminder,
+  isFuture,
+}: {
+  reminder: ReminderRow;
+  isFuture: boolean;
+}): JSX.Element {
+  const rowClass = isFuture ? "reminder-future" : "reminder-past";
+  return (
+    <tr class={rowClass}>
+      <td class="id-col">#{reminder.id}</td>
+      <td class="date-col">{formatDate(reminder.remind_at)}</td>
+      <td class="reminder-msg-col">{escapeHtml(reminder.message)}</td>
+      <td class="source-col">
+        <SourceBadge source={reminder.source} />
+      </td>
+      <td class="date-col">{formatDate(reminder.created_at)}</td>
+    </tr>
+  );
+}
+
 async function renderRemindersPage(dataDir: string): Promise<string> {
-  const reminders = await listPendingReminders(dataDir);
+  const reminders = await listReminders(dataDir);
+  const nowIso = new Date().toISOString();
+  const future = reminders
+    .filter((r) => r.remind_at > nowIso)
+    .sort((a, b) => a.remind_at.localeCompare(b.remind_at));
+  const past = reminders
+    .filter((r) => r.remind_at <= nowIso)
+    .sort((a, b) => b.remind_at.localeCompare(a.remind_at));
 
   const body = (
     <>
       <NavBar />
-      <h1>Pending Reminders</h1>
+      <h1>Reminders</h1>
+      <h2 class="reminder-section-heading">Upcoming</h2>
       <table>
         <thead>
           <tr>
@@ -385,21 +414,32 @@ async function renderRemindersPage(dataDir: string): Promise<string> {
           </tr>
         </thead>
         <tbody>
-          {reminders.length > 0 ? (
-            reminders.map((r) => (
-              <tr>
-                <td class="id-col">#{r.id}</td>
-                <td class="date-col">{formatDate(r.remind_at)}</td>
-                <td class="reminder-msg-col">{escapeHtml(r.message)}</td>
-                <td class="source-col">
-                  <SourceBadge source={r.source} />
-                </td>
-                <td class="date-col">{formatDate(r.created_at)}</td>
-              </tr>
-            ))
+          {future.length > 0 ? (
+            future.map((r) => <ReminderRowView reminder={r} isFuture={true} />)
           ) : (
             <tr>
-              <td colspan="5">No pending reminders.</td>
+              <td colspan="5">No upcoming reminders.</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+      <h2 class="reminder-section-heading reminder-section-past">Past</h2>
+      <table class="reminder-past-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Due</th>
+            <th>Message</th>
+            <th>Source</th>
+            <th>Created</th>
+          </tr>
+        </thead>
+        <tbody>
+          {past.length > 0 ? (
+            past.map((r) => <ReminderRowView reminder={r} isFuture={false} />)
+          ) : (
+            <tr>
+              <td colspan="5">No past reminders.</td>
             </tr>
           )}
         </tbody>
@@ -407,7 +447,7 @@ async function renderRemindersPage(dataDir: string): Promise<string> {
     </>
   ) as string;
 
-  return renderDocument("Pending Reminders – Troy", body);
+  return renderDocument("Reminders – Troy", body);
 }
 
 function listMarkdownFiles(

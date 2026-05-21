@@ -197,21 +197,19 @@ async function handleDeleteReminder(
   }
 }
 
-interface PendingReminder {
+export interface ReminderRow {
   id: number;
   message: string;
   remind_at: string;
   created_at: string;
   source: string;
+  delivered: boolean;
 }
 
-export async function listPendingReminders(
-  dataDir: string,
-): Promise<PendingReminder[]> {
+export async function listReminders(dataDir: string): Promise<ReminderRow[]> {
   const ds = await openReminderDb(dataDir);
   try {
     const rows = await ds.getRepository(Reminder).find({
-      where: { delivered: 0 },
       order: { remind_at: "ASC" },
     });
     return rows.map((r) => ({
@@ -220,6 +218,7 @@ export async function listPendingReminders(
       remind_at: r.remind_at,
       created_at: r.created_at,
       source: r.source,
+      delivered: r.delivered === 1,
     }));
   } finally {
     await ds.destroy();
