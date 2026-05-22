@@ -62,7 +62,8 @@ function truncate(text: string, maxLen: number): string {
 }
 
 function formatDate(iso: string): string {
-  const d = new Date(iso + "Z");
+  const hasZone = /[Zz]|[+-]\d{2}:?\d{2}$/.test(iso);
+  const d = new Date(hasZone ? iso : iso + "Z");
   if (isNaN(d.getTime())) return iso;
   const month = String(d.getUTCMonth() + 1).padStart(2, "0");
   const day = String(d.getUTCDate()).padStart(2, "0");
