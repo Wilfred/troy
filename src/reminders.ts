@@ -2,7 +2,11 @@ import { LessThanOrEqual } from "typeorm";
 import { Reminder } from "./entities.js";
 import { openReminderDb } from "./datasource.js";
 import { log } from "./logger.js";
-import { LOCAL_TIMEZONE, parseLocalDateTime } from "./dates.js";
+import {
+  LOCAL_TIMEZONE,
+  parseLocalDateTime,
+  parseStoredDate,
+} from "./dates.js";
 
 export interface DueReminder {
   id: number;
@@ -200,8 +204,8 @@ async function handleDeleteReminder(
 export interface ReminderRow {
   id: number;
   message: string;
-  remind_at: string;
-  created_at: string;
+  remind_at: Date;
+  created_at: Date;
   source: string;
   delivered: boolean;
 }
@@ -215,8 +219,8 @@ export async function listReminders(dataDir: string): Promise<ReminderRow[]> {
     return rows.map((r) => ({
       id: r.id,
       message: r.message,
-      remind_at: r.remind_at,
-      created_at: r.created_at,
+      remind_at: parseStoredDate(r.remind_at),
+      created_at: parseStoredDate(r.created_at),
       source: r.source,
       delivered: r.delivered === 1,
     }));

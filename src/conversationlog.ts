@@ -1,6 +1,7 @@
 import { DataSource, MoreThanOrEqual } from "typeorm";
 import { Conversation } from "./entities.js";
 import { openConversationDb } from "./datasource.js";
+import { parseStoredDate } from "./dates.js";
 
 export type StoredToolCall = {
   id: string;
@@ -146,7 +147,7 @@ export function formatConversationLog(entries: ConversationEntry[]): string {
 }
 
 export function loadConversationEntries(
-  row: ConversationRow,
+  row: Pick<ConversationRow, "entries">,
 ): ConversationEntry[] | null {
   if (!row.entries) return null;
   return JSON.parse(row.entries) as ConversationEntry[];
@@ -192,8 +193,22 @@ export type ConversationRow = {
   entries: string | null;
   messages: string | null;
   total_duration_ms: number | null;
-  created_at: string;
+  created_at: Date;
 };
+
+function toConversationRow(row: Conversation): ConversationRow {
+  return {
+    id: row.id,
+    source: row.source,
+    prompt: row.prompt,
+    response: row.response,
+    content: row.content,
+    entries: row.entries,
+    messages: row.messages,
+    total_duration_ms: row.total_duration_ms,
+    created_at: parseStoredDate(row.created_at),
+  };
+}
 
 export function sumToolDurationMs(entries: ConversationEntry[]): number {
   let total = 0;
@@ -210,11 +225,12 @@ export async function listConversations(
   limit: number = 50,
   offset: number = 0,
 ): Promise<ConversationRow[]> {
-  return ds.getRepository(Conversation).find({
+  const rows = await ds.getRepository(Conversation).find({
     order: { id: "DESC" },
     take: limit,
     skip: offset,
   });
+  return rows.map(toConversationRow);
 }
 
 export async function getConversation(
@@ -222,7 +238,7 @@ export async function getConversation(
   id: number,
 ): Promise<ConversationRow | undefined> {
   const row = await ds.getRepository(Conversation).findOne({ where: { id } });
-  return row ?? undefined;
+  return row ? toConversationRow(row) : undefined;
 }
 
 export async function countConversations(ds: DataSource): Promise<number> {
