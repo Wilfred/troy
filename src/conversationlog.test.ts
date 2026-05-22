@@ -176,20 +176,7 @@ describe("loadConversationEntries", () => {
   });
 
   it("returns null for legacy rows without entries", () => {
-    assert.equal(
-      loadConversationEntries({
-        id: 1,
-        source: "cli",
-        prompt: "p",
-        response: "r",
-        content: "Prompt:\n  p\n\nResponse:\n  r\n",
-        entries: null,
-        messages: null,
-        total_duration_ms: null,
-        created_at: "2026-04-27 00:00:00",
-      }),
-      null,
-    );
+    assert.equal(loadConversationEntries({ entries: null }), null);
   });
 
   it("round-trips a full conversation persisted to the database", async () => {

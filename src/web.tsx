@@ -61,10 +61,7 @@ function truncate(text: string, maxLen: number): string {
   return text.slice(0, maxLen) + "…";
 }
 
-function formatDate(iso: string): string {
-  const hasZone = /[Zz]|[+-]\d{2}:?\d{2}$/.test(iso);
-  const d = new Date(hasZone ? iso : iso + "Z");
-  if (isNaN(d.getTime())) return iso;
+function formatDate(d: Date): string {
   const month = String(d.getUTCMonth() + 1).padStart(2, "0");
   const day = String(d.getUTCDate()).padStart(2, "0");
   const hours = String(d.getUTCHours()).padStart(2, "0");
@@ -391,13 +388,13 @@ function ReminderRowView({
 
 async function renderRemindersPage(dataDir: string): Promise<string> {
   const reminders = await listReminders(dataDir);
-  const nowIso = new Date().toISOString();
+  const now = Date.now();
   const future = reminders
-    .filter((r) => r.remind_at > nowIso)
-    .sort((a, b) => a.remind_at.localeCompare(b.remind_at));
+    .filter((r) => r.remind_at.getTime() > now)
+    .sort((a, b) => a.remind_at.getTime() - b.remind_at.getTime());
   const past = reminders
-    .filter((r) => r.remind_at <= nowIso)
-    .sort((a, b) => b.remind_at.localeCompare(a.remind_at));
+    .filter((r) => r.remind_at.getTime() <= now)
+    .sort((a, b) => b.remind_at.getTime() - a.remind_at.getTime());
 
   const body = (
     <>
