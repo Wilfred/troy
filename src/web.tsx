@@ -252,8 +252,9 @@ function EntryBlock({ entry }: { entry: ConversationEntry }): JSX.Element {
         ? `entry entry-history entry-history-${entry.role}`
         : "entry entry-system";
     return (
-      <details class={cls}>
+      <details class={cls} open>
         <summary class="entry-header">
+          <span class="entry-chevron" aria-hidden="true"></span>
           <span class="entry-label">{label}</span>
         </summary>
         <pre class="entry-body">{escapeHtml(entry.content)}</pre>
@@ -289,8 +290,9 @@ function EntryBlock({ entry }: { entry: ConversationEntry }): JSX.Element {
         ? "entry entry-tool-input"
         : "entry entry-tool-output";
     return (
-      <details class={cls}>
+      <details class={cls} open>
         <summary class="entry-header">
+          <span class="entry-chevron" aria-hidden="true"></span>
           <span class="entry-label">{label}</span>
           <span class="badge badge-tool">{escapeHtml(entry.name)}</span>
         </summary>
@@ -347,6 +349,20 @@ function renderDetailPage(c: ConversationRow): string {
           </div>
         )}
       </div>
+      {entries && (
+        <div class="entries-toolbar">
+          <button
+            type="button"
+            class="toggle-all-btn"
+            data-toggle-all="collapse"
+          >
+            Collapse all
+          </button>
+          <button type="button" class="toggle-all-btn" data-toggle-all="expand">
+            Expand all
+          </button>
+        </div>
+      )}
       <div class="entries">
         {entries ? (
           entries.map((entry) => <EntryBlock entry={entry} />)
@@ -359,6 +375,18 @@ function renderDetailPage(c: ConversationRow): string {
           </div>
         )}
       </div>
+      {entries && (
+        <script>{`
+document.querySelectorAll('.toggle-all-btn').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var open = btn.dataset.toggleAll === 'expand';
+    document.querySelectorAll('.entries details.entry').forEach(function (d) {
+      d.open = open;
+    });
+  });
+});
+`}</script>
+      )}
     </>
   ) as string;
 
