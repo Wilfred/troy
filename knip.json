@@ -1,4 +1,3 @@
 {
-  "entry": ["src/discord.ts"],
   "project": ["src/**/*.{ts,tsx}"]
 }

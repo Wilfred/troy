@@ -24,6 +24,7 @@ npm test               # Compile and run tests (node --test)
 npm start              # Run the CLI (REPL, or pass -- -p <prompt>)
 npm run discord        # Run as a Discord bot
 npm run web            # Start the web UI
+npm run duck           # Run the minimal Duck Discord bot (no tools)
 ```
 
 CI runs typecheck, lint, and format:check on Node 22.
@@ -32,19 +33,28 @@ Run `npm run knip` before committing to check for unused exports and dependencie
 
 ## Architecture
 
-**Source files — keep each file small and focused on a single responsibility:**
+The source tree is split into two independent apps under `src/`:
 
-- `src/index.ts` — CLI entry point, system prompt construction, and chat loop
-- `src/tools.ts` — Tool registry (combines all tools) and note tool handlers
-- `src/skills.ts` — Skill file parsing (YAML front matter), listing, and LLM-based selection
-- `src/weather.ts` — Weather tool schema and Open-Meteo API integration
-- `src/calendar.ts` — Google Calendar tool schemas and handlers
-- `src/search.ts` — Web search tool using Brave Search API
-- `src/discord.ts` — Discord bot integration
-- `src/conversationlog.ts` — Conversation logging utilities
-- `src/entities.ts` — TypeORM entity definitions (Conversation, Reminder)
-- `src/datasource.ts` — TypeORM DataSource initialization for the SQLite files
-- `src/logger.ts` — Structured logging via winston
+- `src/troy/` — the full Troy bot (CLI, Discord, web UI, tools, memory)
+- `src/duck/` — a minimal Discord bot that forwards requests to OpenRouter with no tools, no memory, and no history
+
+**Troy source files (`src/troy/`) — keep each file small and focused on a single responsibility:**
+
+- `src/troy/index.ts` — CLI entry point, system prompt construction, and chat loop
+- `src/troy/tools.ts` — Tool registry (combines all tools) and note tool handlers
+- `src/troy/skills.ts` — Skill file parsing (YAML front matter), listing, and LLM-based selection
+- `src/troy/weather.ts` — Weather tool schema and Open-Meteo API integration
+- `src/troy/calendar.ts` — Google Calendar tool schemas and handlers
+- `src/troy/search.ts` — Web search tool using Brave Search API
+- `src/troy/discord.ts` — Discord bot integration
+- `src/troy/conversationlog.ts` — Conversation logging utilities
+- `src/troy/entities.ts` — TypeORM entity definitions (Conversation, Reminder)
+- `src/troy/datasource.ts` — TypeORM DataSource initialization for the SQLite files
+- `src/troy/logger.ts` — Structured logging via winston
+
+**Duck source files (`src/duck/`):**
+
+- `src/duck/index.ts` — minimal Discord bot entry point; sends each prompt to OpenRouter and replies with the result
 
 **CLI subcommands** (via Commander.js, exposed as npm scripts):
 
