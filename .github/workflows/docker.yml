@@ -11,11 +11,14 @@ env:
 
 jobs:
   docker:
-    name: Build (and push on main)
+    name: Build ${{ matrix.app }} (and push on main)
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+    strategy:
+      matrix:
+        app: [troy, duck]
     steps:
       - uses: actions/checkout@v5
 
@@ -31,7 +34,7 @@ jobs:
       - uses: docker/metadata-action@v6
         id: meta
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}${{ matrix.app == 'duck' && '-duck' || '' }}
           tags: |
             type=sha
             type=raw,value=latest,enable={{is_default_branch}}
@@ -39,8 +42,9 @@ jobs:
       - uses: docker/build-push-action@v7
         with:
           context: .
+          file: packages/${{ matrix.app }}/Dockerfile
           push: ${{ github.ref == 'refs/heads/main' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}

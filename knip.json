@@ -1,3 +1,6 @@
 {
-  "project": ["src/**/*.{ts,tsx}"]
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "workspaces": {
+    "packages/*": {}
+  }
 }

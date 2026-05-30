@@ -1,20 +1,26 @@
 {
-  "name": "troy",
+  "name": "troy-monorepo",
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "packages/shared",
+    "packages/troy",
+    "packages/duck"
+  ],
   "scripts": {
-    "build": "tsc && cp -r src/troy/public dist/troy/public",
-    "start": "tsx src/troy/index.ts run",
-    "discord": "tsx src/troy/index.ts discord",
-    "web": "tsx src/troy/index.ts web",
-    "duck": "tsx src/duck/index.ts",
-    "typecheck": "tsc --noEmit",
+    "build": "tsc -b && cp -r packages/troy/src/public packages/troy/dist/public",
+    "clean": "tsc -b --clean && rm -rf packages/*/dist packages/*/*.tsbuildinfo",
+    "start": "tsc -b packages/shared && tsx --tsconfig packages/troy/tsconfig.json packages/troy/src/index.ts run",
+    "discord": "tsc -b packages/shared && tsx --tsconfig packages/troy/tsconfig.json packages/troy/src/index.ts discord",
+    "web": "tsc -b packages/shared && tsx --tsconfig packages/troy/tsconfig.json packages/troy/src/index.ts web",
+    "duck": "tsc -b packages/shared && tsx --tsconfig packages/duck/tsconfig.json packages/duck/src/index.ts",
+    "typecheck": "tsc -b",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "knip": "knip",
-    "test": "tsc && node --test 'dist/troy/*.test.js'"
+    "test": "tsc -b && node --test 'packages/troy/dist/*.test.js'"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
@@ -25,18 +31,5 @@
     "tsx": "^4.21.0",
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.55.0"
-  },
-  "dependencies": {
-    "@js-temporal/polyfill": "^0.5.1",
-    "@kitajs/html": "^4.2.13",
-    "@openrouter/sdk": "^0.8.0",
-    "better-sqlite3": "^12.6.2",
-    "commander": "^14.0.3",
-    "discord.js": "^14.25.1",
-    "googleapis": "^171.4.0",
-    "node-html-markdown": "^2.0.0",
-    "reflect-metadata": "^0.2.2",
-    "typeorm": "^0.3.28",
-    "winston": "^3.19.0"
   }
 }

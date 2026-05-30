@@ -1,0 +1,21 @@
+{
+  "name": "troy",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "dependencies": {
+    "@js-temporal/polyfill": "^0.5.1",
+    "@kitajs/html": "^4.2.13",
+    "@openrouter/sdk": "^0.8.0",
+    "@troy/shared": "*",
+    "better-sqlite3": "^12.6.2",
+    "commander": "^14.0.3",
+    "discord.js": "^14.25.1",
+    "googleapis": "^171.4.0",
+    "node-html-markdown": "^2.0.0",
+    "reflect-metadata": "^0.2.2",
+    "typeorm": "^0.3.28",
+    "winston": "^3.19.0"
+  }
+}

@@ -19,7 +19,7 @@ import {
 import { log } from "./logger.js";
 import { buildSystemPrompt } from "./systemprompt.js";
 import { DueReminder, startReminderScheduler } from "./reminders.js";
-import { MODEL } from "./consts.js";
+import { MODEL } from "@troy/shared";
 import { reflectOnNotes, reflectOnSkills } from "./notereflect.js";
 import { selectRelevantSkills, loadSelectedSkills } from "./skills.js";
 
