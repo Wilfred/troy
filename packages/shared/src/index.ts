@@ -6,3 +6,4 @@ export {
   loadDiscordAllowlist,
   parseAllowlist,
 } from "./allowlist.js";
+export { appendNote, editNote, readNotes } from "./notes.js";

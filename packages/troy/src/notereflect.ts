@@ -1,5 +1,5 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { OpenRouter } from "@openrouter/sdk";
+import { appendNote, editNote, readNotes } from "@troy/shared";
 import { log } from "./logger.js";
 import {
   listSkillSummaries,
@@ -151,11 +151,7 @@ function handleNoteReflectToolCall(
 
   if (name === "append_note") {
     const args = JSON.parse(argsJson) as { content: string };
-    const current = existsSync(notesPath)
-      ? readFileSync(notesPath, "utf-8")
-      : "";
-    writeFileSync(notesPath, current + args.content, "utf-8");
-    return "Done.";
+    return appendNote(notesPath, args.content);
   }
 
   if (name === "edit_note") {
@@ -163,15 +159,7 @@ function handleNoteReflectToolCall(
       old_text: string;
       new_text: string;
     };
-    const current = existsSync(notesPath)
-      ? readFileSync(notesPath, "utf-8")
-      : "";
-    if (!current.includes(args.old_text)) {
-      return "Error: old_text not found in NOTES.md.";
-    }
-    const updated = current.replace(args.old_text, args.new_text);
-    writeFileSync(notesPath, updated, "utf-8");
-    return "Done.";
+    return editNote(notesPath, args.old_text, args.new_text);
   }
 
   return `Error: unknown tool "${name}"`;
@@ -229,9 +217,7 @@ export async function reflectOnNotes(
   userPrompt: string,
   assistantResponse: string,
 ): Promise<void> {
-  const currentNotes = existsSync(notesPath)
-    ? readFileSync(notesPath, "utf-8")
-    : "";
+  const currentNotes = readNotes(notesPath);
 
   const systemPrompt = `You are a memory manager. Your job is to decide whether NOTES.md should be updated based on a conversation exchange.
 
