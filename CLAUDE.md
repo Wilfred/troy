@@ -14,47 +14,63 @@ The data directory is split into two subdirectories:
 ## Commands
 
 ```bash
-npm run build          # Compile TypeScript (tsc)
-npm run typecheck      # Type-check without emitting (tsc --noEmit)
+npm run build          # Build all packages (tsc -b) + copy web assets
+npm run typecheck      # Type-check all packages (tsc -b)
 npm run lint           # ESLint
 npm run format         # Prettier (write)
 npm run format:check   # Prettier (check only)
 npm run knip           # Check for unused exports and dependencies
-npm test               # Compile and run tests (node --test)
+npm test               # Build and run tests (node --test)
 npm start              # Run the CLI (REPL, or pass -- -p <prompt>)
 npm run discord        # Run as a Discord bot
 npm run web            # Start the web UI
 npm run duck           # Run the minimal Duck Discord bot (no tools)
 ```
 
-CI runs typecheck, lint, and format:check on Node 22.
+Commands run from the repo root and operate across all workspaces. CI runs typecheck, lint, and format:check on Node 22.
 
 Run `npm run knip` before committing to check for unused exports and dependencies.
 
 ## Architecture
 
-The source tree is split into two independent apps under `src/`:
+This is an **npm workspaces monorepo**. Each app lives in its own package
+under `packages/`, with a single root `package.json` holding the shared dev
+tooling (TypeScript, ESLint, Prettier, knip, tsx):
 
-- `src/troy/` — the full Troy bot (CLI, Discord, web UI, tools, memory)
-- `src/duck/` — a minimal Discord bot that forwards requests to OpenRouter with no tools, no memory, and no history
+- `packages/troy/` — the full Troy bot (CLI, Discord, web UI, tools, memory)
+- `packages/duck/` — a minimal Discord bot that forwards requests to OpenRouter with no tools, no memory, and no history
+- `packages/shared/` (`@troy/shared`) — code shared between the two bots (e.g. `splitMessage`, the model constant)
 
-**Troy source files (`src/troy/`) — keep each file small and focused on a single responsibility:**
+TypeScript uses **project references**: each package has its own
+`tsconfig.json` extending `tsconfig.base.json`, the root `tsconfig.json` is a
+solution file referencing all three, and `tsc -b` builds them in dependency
+order. Each package emits to its own `dist/`. Both `troy` and `duck` depend on
+`@troy/shared` via the workspace; importing across packages goes through the
+`@troy/shared` package name, never relative `../` paths into another package.
 
-- `src/troy/index.ts` — CLI entry point, system prompt construction, and chat loop
-- `src/troy/tools.ts` — Tool registry (combines all tools) and note tool handlers
-- `src/troy/skills.ts` — Skill file parsing (YAML front matter), listing, and LLM-based selection
-- `src/troy/weather.ts` — Weather tool schema and Open-Meteo API integration
-- `src/troy/calendar.ts` — Google Calendar tool schemas and handlers
-- `src/troy/search.ts` — Web search tool using Brave Search API
-- `src/troy/discord.ts` — Discord bot integration
-- `src/troy/conversationlog.ts` — Conversation logging utilities
-- `src/troy/entities.ts` — TypeORM entity definitions (Conversation, Reminder)
-- `src/troy/datasource.ts` — TypeORM DataSource initialization for the SQLite files
-- `src/troy/logger.ts` — Structured logging via winston
+Each deployable app has its own Dockerfile, built from the repo root as
+context so the build sees the whole workspace:
 
-**Duck source files (`src/duck/`):**
+- `packages/troy/Dockerfile` — `docker build -f packages/troy/Dockerfile -t troy .`
+- `packages/duck/Dockerfile` — `docker build -f packages/duck/Dockerfile -t duck .` (installs only Duck + shared deps, so the image stays slim)
 
-- `src/duck/index.ts` — minimal Discord bot entry point; sends each prompt to OpenRouter and replies with the result
+**Troy source files (`packages/troy/src/`) — keep each file small and focused on a single responsibility:**
+
+- `index.ts` — CLI entry point, system prompt construction, and chat loop
+- `tools.ts` — Tool registry (combines all tools) and note tool handlers
+- `skills.ts` — Skill file parsing (YAML front matter), listing, and LLM-based selection
+- `weather.ts` — Weather tool schema and Open-Meteo API integration
+- `calendar.ts` — Google Calendar tool schemas and handlers
+- `search.ts` — Web search tool using Brave Search API
+- `discord.ts` — Discord bot integration
+- `conversationlog.ts` — Conversation logging utilities
+- `entities.ts` — TypeORM entity definitions (Conversation, Reminder)
+- `datasource.ts` — TypeORM DataSource initialization for the SQLite files
+- `logger.ts` — Structured logging via winston
+
+**Duck source files (`packages/duck/src/`):**
+
+- `index.ts` — minimal Discord bot entry point; sends each prompt to OpenRouter and replies with the result
 
 **CLI subcommands** (via Commander.js, exposed as npm scripts):
 

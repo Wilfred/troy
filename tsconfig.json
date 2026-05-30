@@ -1,16 +1,8 @@
 {
-  "compilerOptions": {
-    "target": "ES2022",
-    "module": "node16",
-    "moduleResolution": "node16",
-    "outDir": "dist",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    "jsx": "react-jsx",
-    "jsxImportSource": "@kitajs/html"
-  },
-  "include": ["src"]
+  "files": [],
+  "references": [
+    { "path": "packages/shared" },
+    { "path": "packages/troy" },
+    { "path": "packages/duck" }
+  ]
 }

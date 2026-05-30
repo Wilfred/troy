@@ -4,7 +4,7 @@ import tseslint from "typescript-eslint";
 export default tseslint.config(
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
-  { ignores: ["dist/"] },
+  { ignores: ["**/dist/"] },
   {
     rules: {
       "@typescript-eslint/explicit-function-return-type": "error",

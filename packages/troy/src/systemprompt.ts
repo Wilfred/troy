@@ -9,7 +9,7 @@ export function buildSystemPrompt(
   selectedSkillContents?: string[],
 ): string {
   let systemPrompt = readFileSync(
-    new URL("../../src/troy/SYSTEM.md", import.meta.url),
+    new URL("../src/SYSTEM.md", import.meta.url),
     "utf-8",
   );
 

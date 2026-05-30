@@ -1,0 +1,12 @@
+{
+  "name": "@troy/duck",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "dependencies": {
+    "@openrouter/sdk": "^0.8.0",
+    "@troy/shared": "*",
+    "discord.js": "^14.25.1"
+  }
+}

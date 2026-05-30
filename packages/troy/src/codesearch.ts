@@ -3,13 +3,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { log } from "./logger.js";
 
-const SRC_DIR = join(
-  dirname(fileURLToPath(import.meta.url)),
-  "..",
-  "..",
-  "src",
-  "troy",
-);
+const SRC_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "src");
 
 function searchSourceCode(pattern: string, filenameFilter?: string): string {
   log.info(

@@ -9,7 +9,7 @@ import {
 } from "discord.js";
 import { OpenRouter } from "@openrouter/sdk";
 import { DataSource } from "typeorm";
-import { MODEL } from "./consts.js";
+import { MODEL, splitMessage } from "@troy/shared";
 import { TRUSTED_TOOLS, UNTRUSTED_TOOLS, handleToolCall } from "./tools.js";
 import {
   ConversationEntry,
@@ -39,31 +39,6 @@ type ChatMessage =
       }>;
     }
   | { role: "tool"; content: string; toolCallId: string };
-
-const DISCORD_MAX_LENGTH = 2000;
-
-function splitMessage(text: string): string[] {
-  if (text.length <= DISCORD_MAX_LENGTH) return [text];
-
-  const chunks: string[] = [];
-  let remaining = text;
-  while (remaining.length > 0) {
-    if (remaining.length <= DISCORD_MAX_LENGTH) {
-      chunks.push(remaining);
-      break;
-    }
-    let splitAt = remaining.lastIndexOf("\n", DISCORD_MAX_LENGTH);
-    if (splitAt <= 0) {
-      splitAt = remaining.lastIndexOf(" ", DISCORD_MAX_LENGTH);
-    }
-    if (splitAt <= 0) {
-      splitAt = DISCORD_MAX_LENGTH;
-    }
-    chunks.push(remaining.slice(0, splitAt));
-    remaining = remaining.slice(splitAt).trimStart();
-  }
-  return chunks;
-}
 
 async function untrustedChatLoop(
   client: OpenRouter,
