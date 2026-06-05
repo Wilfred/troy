@@ -1,3 +1,4 @@
+import http from "node:http";
 import {
   Client,
   Events,
@@ -107,6 +108,16 @@ async function main(): Promise<void> {
   });
 
   await client.login(token);
+
+  const healthPort = parseInt(process.env.HEALTH_PORT || "8080", 10);
+  const healthServer = http.createServer((_req, res) => {
+    const ready = client.ws.status === 0;
+    res.writeHead(ready ? 200 : 503);
+    res.end(ready ? "ok" : "not ready");
+  });
+  healthServer.listen(healthPort, () => {
+    console.log(`Health check listening on port ${healthPort}`);
+  });
 }
 
 main();
