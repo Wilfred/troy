@@ -2,42 +2,94 @@ import {
   Client,
   Events,
   GatewayIntentBits,
-  Message,
+  Message as DiscordMessage,
   Partials,
 } from "discord.js";
 import { OpenRouter } from "@openrouter/sdk";
 import { MODEL, splitMessage } from "@troy/shared";
+import { VM_TOOL, runInVm } from "./vm.js";
+
+type Message = {
+  role: string;
+  content?: string | null;
+  toolCalls?: Array<{
+    id: string;
+    type: string;
+    function: { name: string; arguments: string };
+  }>;
+  toolCallId?: string;
+};
 
 // Duck is a deliberately minimal Discord bot: it forwards each request to
 // OpenRouter and replies with the model's answer. Unlike Troy, it has no
-// tools, no persistent memory, and no conversation history.
+// persistent memory and no conversation history, but it can run shell
+// commands in a disposable QEMU VM.
+
+const TOOLS = [VM_TOOL];
 
 const SYSTEM_PROMPT =
   "You are Duck, a friendly and concise assistant on Discord. " +
-  "Answer the user's questions directly. You have no tools, no memory of " +
-  "past conversations, and no access to external services.";
+  "Answer the user's questions directly. You have no memory of " +
+  "past conversations. You can run shell commands in an isolated, " +
+  "disposable Linux VM using the run_in_vm tool.";
+
+async function handleToolCall(name: string, argsJson: string): Promise<string> {
+  if (name === "run_in_vm") {
+    const { command } = JSON.parse(argsJson) as { command: string };
+    return runInVm(command);
+  }
+  return `Unknown tool: ${name}`;
+}
 
 async function generateReply(
   openrouter: OpenRouter,
   model: string,
   prompt: string,
 ): Promise<string> {
-  const completion = await openrouter.chat.send({
-    chatGenerationParams: {
-      model,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: prompt },
-      ],
-    },
-  });
+  const messages: Message[] = [
+    { role: "system", content: SYSTEM_PROMPT },
+    { role: "user", content: prompt },
+  ];
 
-  const content = completion.choices?.[0]?.message?.content;
-  return (content as string) || "Sorry, I didn't get a response.";
+  for (;;) {
+    const completion = await openrouter.chat.send({
+      chatGenerationParams: {
+        model,
+        messages,
+        tools: TOOLS,
+      },
+    });
+
+    const msg = completion.choices?.[0]?.message;
+    if (!msg) return "Sorry, I didn't get a response.";
+
+    if (msg.toolCalls && msg.toolCalls.length > 0) {
+      messages.push({
+        role: "assistant",
+        content: msg.content as string | null | undefined,
+        toolCalls: msg.toolCalls,
+      });
+
+      for (const toolCall of msg.toolCalls) {
+        const result = await handleToolCall(
+          toolCall.function.name,
+          toolCall.function.arguments,
+        );
+        messages.push({
+          role: "tool",
+          toolCallId: toolCall.id,
+          content: result,
+        });
+      }
+      continue;
+    }
+
+    return (msg.content as string) || "Sorry, I didn't get a response.";
+  }
 }
 
 async function handleMessage(
-  discordMsg: Message,
+  discordMsg: DiscordMessage,
   openrouter: OpenRouter,
   model: string,
 ): Promise<void> {
