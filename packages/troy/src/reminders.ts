@@ -15,7 +15,7 @@ export interface DueReminder {
   source: string;
 }
 
-async function checkDueReminders(dataDir: string): Promise<DueReminder[]> {
+async function findDueReminders(dataDir: string): Promise<DueReminder[]> {
   const ds = await openReminderDb(dataDir);
   try {
     const repo = ds.getRepository(Reminder);
@@ -24,15 +24,6 @@ async function checkDueReminders(dataDir: string): Promise<DueReminder[]> {
       where: { delivered: 0, remind_at: LessThanOrEqual(now) },
       order: { remind_at: "ASC" },
     });
-
-    if (rows.length === 0) {
-      return [];
-    }
-
-    await repo.update(
-      rows.map((r) => r.id),
-      { delivered: 1 },
-    );
 
     return rows.map((r) => ({
       id: r.id,
@@ -45,23 +36,61 @@ async function checkDueReminders(dataDir: string): Promise<DueReminder[]> {
   }
 }
 
+async function markDelivered(dataDir: string, ids: number[]): Promise<void> {
+  if (ids.length === 0) return;
+  const ds = await openReminderDb(dataDir);
+  try {
+    await ds.getRepository(Reminder).update(ids, { delivered: 1 });
+  } finally {
+    await ds.destroy();
+  }
+}
+
 const POLL_INTERVAL_MS = 30_000;
 
+/**
+ * Poll for due reminders and hand them to `onDue` for delivery.
+ *
+ * A reminder is only marked `delivered` once `onDue` confirms it by
+ * returning its id, so a crash or host reboot mid-delivery leaves the
+ * reminder pending and it is retried on the next poll (at-least-once
+ * delivery). `onDue` must therefore be idempotent enough to tolerate a
+ * reminder being re-sent if the process dies after delivery but before the
+ * database update commits. Transient failures (e.g. a Discord channel that
+ * has not loaded yet right after restart) should be omitted from the
+ * returned ids so they are retried; permanently undeliverable reminders
+ * should be included so they are not retried forever.
+ */
 export function startReminderScheduler(
   dataDir: string,
-  onDue: (reminders: DueReminder[]) => void,
+  onDue: (reminders: DueReminder[]) => Promise<number[]>,
 ): NodeJS.Timeout {
-  const timer = setInterval(() => {
-    checkDueReminders(dataDir)
-      .then((due) => {
-        if (due.length > 0) onDue(due);
-      })
-      .catch((err: unknown) => {
-        log.error(
-          `Reminder scheduler error: ${err instanceof Error ? err.message : String(err)}`,
-        );
-      });
-  }, POLL_INTERVAL_MS);
+  let inFlight = false;
+
+  const tick = async (): Promise<void> => {
+    // Skip overlapping ticks so a slow delivery can't double-send.
+    if (inFlight) return;
+    inFlight = true;
+    try {
+      const due = await findDueReminders(dataDir);
+      if (due.length > 0) {
+        const deliveredIds = await onDue(due);
+        await markDelivered(dataDir, deliveredIds);
+      }
+    } catch (err: unknown) {
+      log.error(
+        `Reminder scheduler error: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    } finally {
+      inFlight = false;
+    }
+  };
+
+  // Run an immediate check so a backlog accumulated while the process was
+  // down (e.g. a host reboot) is delivered without waiting a full interval.
+  void tick();
+
+  const timer = setInterval(() => void tick(), POLL_INTERVAL_MS);
 
   // Don't keep the process alive just for the scheduler
   timer.unref();
