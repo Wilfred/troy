@@ -14,6 +14,7 @@ import {
   getConversation,
   countConversations,
   loadConversationEntries,
+  formatConversationLog,
   sumToolDurationMs,
   ConversationEntry,
   ConversationRow,
@@ -321,6 +322,9 @@ function renderDetailPage(c: ConversationRow): string {
         ← All conversations
       </a>
       <h1>Conversation C{c.id}</h1>
+      <p>
+        <a href={`/conversation/${c.id}/text`}>View as plain text</a>
+      </p>
       <div class="detail-meta">
         <div>
           <strong>ID:</strong> C{c.id}
@@ -363,6 +367,11 @@ function renderDetailPage(c: ConversationRow): string {
   ) as string;
 
   return renderDocument(`C${c.id} – Troy`, body);
+}
+
+function renderConversationText(c: ConversationRow): string {
+  const entries = loadConversationEntries(c);
+  return entries ? formatConversationLog(entries) : c.content;
 }
 
 function ReminderRowView({
@@ -678,6 +687,7 @@ async function handleRequest(
   }
 
   const conversationMatch = /^\/conversation\/(\d+)$/.exec(pathname);
+  const conversationTextMatch = /^\/conversation\/(\d+)\/text$/.exec(pathname);
 
   if (pathname === "/style.css") {
     res.writeHead(200, { "Content-Type": "text/css; charset=utf-8" });
@@ -725,6 +735,16 @@ async function handleRequest(
     const total = await countConversations(db);
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     res.end(renderListPage(conversations, total, page));
+  } else if (conversationTextMatch) {
+    const id = parseInt(conversationTextMatch[1]);
+    const conversation = await getConversation(db, id);
+    if (conversation) {
+      res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
+      res.end(renderConversationText(conversation));
+    } else {
+      res.writeHead(404, { "Content-Type": "text/html; charset=utf-8" });
+      res.end(render404());
+    }
   } else if (conversationMatch) {
     const id = parseInt(conversationMatch[1]);
     const conversation = await getConversation(db, id);
