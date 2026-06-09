@@ -42,15 +42,12 @@ describe("startReminderScheduler", () => {
     await setPastReminder(dataDir);
 
     let calls = 0;
-    const timer = startReminderScheduler(
-      dataDir,
-      (): Promise<number[]> => {
-        calls += 1;
-        // Simulate a transient delivery failure on the first pass by
-        // confirming nothing.
-        return Promise.resolve([]);
-      },
-    );
+    const timer = startReminderScheduler(dataDir, (): Promise<number[]> => {
+      calls += 1;
+      // Simulate a transient delivery failure on the first pass by
+      // confirming nothing.
+      return Promise.resolve([]);
+    });
 
     try {
       await waitFor(() => Promise.resolve(calls >= 1));

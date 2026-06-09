@@ -493,9 +493,9 @@ export async function startDiscordBot(
             client.channels.cache.get(channelId) ??
             (await client.channels.fetch(channelId));
           if (channel && channel.isTextBased() && "send" in channel) {
-            await (
-              channel as { send: (msg: string) => Promise<unknown> }
-            ).send(`**Reminder:** ${r.message}`);
+            await (channel as { send: (msg: string) => Promise<unknown> }).send(
+              `**Reminder:** ${r.message}`,
+            );
             delivered.push(r.id);
           } else {
             // Channel exists but can't receive messages; don't retry.
