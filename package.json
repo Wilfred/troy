@@ -20,7 +20,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "knip": "knip",
-    "test": "npm run build && node --test 'packages/troy/dist/*.test.js'"
+    "test": "npm run build && node --test 'packages/*/dist/**/*.test.js'"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
