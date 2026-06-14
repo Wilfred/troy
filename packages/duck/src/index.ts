@@ -7,7 +7,7 @@ import {
   Partials,
 } from "discord.js";
 import { OpenRouter } from "@openrouter/sdk";
-import { MODEL, splitMessage } from "@troy/shared";
+import { MODEL, splitMessage, loadDiscordAllowlist } from "@troy/shared";
 
 // Duck is a deliberately minimal Discord bot: it forwards each request to
 // OpenRouter and replies with the model's answer. Unlike Troy, it has no
@@ -74,6 +74,12 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  const allowlist = loadDiscordAllowlist();
+  if (!allowlist) {
+    console.error("DISCORD_ALLOWLIST environment variable is not set");
+    process.exit(1);
+  }
+
   const model = MODEL;
   const openrouter = new OpenRouter({ apiKey });
 
@@ -94,6 +100,8 @@ async function main(): Promise<void> {
   client.on(Events.MessageCreate, async (msg) => {
     try {
       if (msg.author.bot) return;
+
+      if (!allowlist.has(msg.author.id)) return;
 
       const isDM = !msg.guild;
       const isMentioned = msg.mentions.has(client.user!);
