@@ -10,7 +10,6 @@ import { startDiscordBot } from "./discord.js";
 import { startWebServer } from "./web.js";
 import {
   ConversationEntry,
-  StoredMessage,
   openDb,
   writeConversationLog,
   loadRecentHistory,
@@ -19,7 +18,7 @@ import {
 import { log } from "./logger.js";
 import { buildSystemPrompt } from "./systemprompt.js";
 import { DueReminder, startReminderScheduler } from "./reminders.js";
-import { MODEL } from "@troy/shared";
+import { MODEL, StoredMessage, historyToMessages } from "@troy/shared";
 import { reflectOnNotes, reflectOnSkills } from "./notereflect.js";
 import { selectRelevantSkills, loadSelectedSkills } from "./skills.js";
 
@@ -311,17 +310,8 @@ async function replAction(opts: {
       role: "system",
       content: buildSystemPrompt(dataDir),
     },
+    ...historyToMessages(history),
   ];
-  for (const exchange of history) {
-    if (exchange.messages.length > 0) {
-      for (const m of exchange.messages) {
-        messages.push(m as Message);
-      }
-    } else {
-      messages.push({ role: "user", content: exchange.user });
-      messages.push({ role: "assistant", content: exchange.assistant });
-    }
-  }
 
   const toolsUsed: string[] = [];
   const toolInputs: Array<{ name: string; args: unknown }> = [];
@@ -493,17 +483,8 @@ async function runAction(opts: {
       role: "system",
       content: systemPrompt,
     },
+    ...historyToMessages(history),
   ];
-  for (const exchange of history) {
-    if (exchange.messages.length > 0) {
-      for (const m of exchange.messages) {
-        messages.push(m as Message);
-      }
-    } else {
-      messages.push({ role: "user", content: exchange.user });
-      messages.push({ role: "assistant", content: exchange.assistant });
-    }
-  }
   const turnStart = messages.length;
   messages.push({ role: "user", content: opts.prompt });
 

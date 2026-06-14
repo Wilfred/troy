@@ -1,22 +1,8 @@
 import { DataSource, MoreThanOrEqual } from "typeorm";
+import { Exchange, StoredMessage } from "@troy/shared";
 import { Conversation } from "./entities.js";
 import { openConversationDb } from "./datasource.js";
 import { parseStoredDate } from "./dates.js";
-
-export type StoredToolCall = {
-  id: string;
-  type: "function";
-  function: { name: string; arguments: string };
-};
-
-export type StoredMessage =
-  | { role: "user"; content: string }
-  | {
-      role: "assistant";
-      content?: string | null;
-      toolCalls?: StoredToolCall[];
-    }
-  | { role: "tool"; content: string; toolCallId: string };
 
 export type ConversationEntry =
   | { kind: "system"; content: string }
@@ -28,12 +14,6 @@ export type ConversationEntry =
   | { kind: "response"; content: string }
   | { kind: "tool_input"; name: string; content: string }
   | { kind: "tool_output"; name: string; content: string; duration_ms: number };
-
-type Exchange = {
-  user: string;
-  assistant: string;
-  messages: StoredMessage[];
-};
 
 function indentBlock(text: string): string {
   return text

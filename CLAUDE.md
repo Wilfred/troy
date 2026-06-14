@@ -38,8 +38,8 @@ under `packages/`, with a single root `package.json` holding the shared dev
 tooling (TypeScript, ESLint, Prettier, knip, tsx):
 
 - `packages/troy/` — the full Troy bot (CLI, Discord, web UI, tools, memory)
-- `packages/duck/` — a minimal Discord bot that forwards requests to OpenRouter with no tools, no memory, and no history
-- `packages/shared/` (`@troy/shared`) — code shared between the two bots (e.g. `splitMessage`, the model constant)
+- `packages/duck/` — a minimal Discord bot that forwards requests to OpenRouter with no tools and no persistent memory; it keeps a short in-memory conversation history per channel using the shared history helpers
+- `packages/shared/` (`@troy/shared`) — code shared between the two bots (e.g. `splitMessage`, the model constant, conversation-history helpers)
 
 TypeScript uses **project references**: each package has its own
 `tsconfig.json` extending `tsconfig.base.json`, the root `tsconfig.json` is a
@@ -70,7 +70,7 @@ context so the build sees the whole workspace:
 
 **Duck source files (`packages/duck/src/`):**
 
-- `index.ts` — minimal Discord bot entry point; sends each prompt to OpenRouter and replies with the result
+- `index.ts` — minimal Discord bot entry point; sends each prompt (plus the channel's in-memory history) to OpenRouter and replies with the result
 
 **CLI subcommands** (via Commander.js, exposed as npm scripts):
 

@@ -7,20 +7,32 @@ import {
   Partials,
 } from "discord.js";
 import { OpenRouter } from "@openrouter/sdk";
-import { MODEL, splitMessage } from "@troy/shared";
+import {
+  HistoryStore,
+  MODEL,
+  createHistoryStore,
+  historyToMessages,
+  loadHistory,
+  recordExchange,
+  splitMessage,
+} from "@troy/shared";
 
 // Duck is a deliberately minimal Discord bot: it forwards each request to
 // OpenRouter and replies with the model's answer. Unlike Troy, it has no
-// tools, no persistent memory, and no conversation history.
+// tools and no persistent memory, but it does keep a short, in-memory
+// conversation history per channel (reusing Troy's history helpers) so it can
+// follow up within a conversation.
 
 const SYSTEM_PROMPT =
   "You are Duck, a friendly and concise assistant on Discord. " +
-  "Answer the user's questions directly. You have no tools, no memory of " +
-  "past conversations, and no access to external services.";
+  "Answer the user's questions directly. You have no tools and no access to " +
+  "external services, but you can remember the current conversation.";
 
 async function generateReply(
   openrouter: OpenRouter,
   model: string,
+  store: HistoryStore,
+  source: string,
   prompt: string,
 ): Promise<string> {
   const completion = await openrouter.chat.send({
@@ -28,6 +40,7 @@ async function generateReply(
       model,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
+        ...historyToMessages(loadHistory(store, source)),
         { role: "user", content: prompt },
       ],
     },
@@ -41,6 +54,7 @@ async function handleMessage(
   discordMsg: Message,
   openrouter: OpenRouter,
   model: string,
+  store: HistoryStore,
 ): Promise<void> {
   const prompt = discordMsg.content.replace(/<@[!&]?\d+>/g, "").trim();
   if (!prompt) return;
@@ -50,8 +64,15 @@ async function handleMessage(
     return;
   }
 
+  const source = `discord:${discordMsg.channelId}`;
+
   try {
-    const reply = await generateReply(openrouter, model, prompt);
+    const reply = await generateReply(openrouter, model, store, source, prompt);
+    recordExchange(store, source, {
+      user: prompt,
+      assistant: reply,
+      messages: [],
+    });
     for (const chunk of splitMessage(reply)) {
       await discordMsg.reply(chunk);
     }
@@ -76,6 +97,7 @@ async function main(): Promise<void> {
 
   const model = MODEL;
   const openrouter = new OpenRouter({ apiKey });
+  const history = createHistoryStore();
 
   const client = new Client({
     intents: [
@@ -99,7 +121,7 @@ async function main(): Promise<void> {
       const isMentioned = msg.mentions.has(client.user!);
       if (!isDM && !isMentioned) return;
 
-      await handleMessage(msg, openrouter, model);
+      await handleMessage(msg, openrouter, model, history);
     } catch (err) {
       const stack =
         err instanceof Error ? (err.stack ?? err.message) : String(err);

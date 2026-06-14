@@ -9,11 +9,15 @@ import {
 } from "discord.js";
 import { OpenRouter } from "@openrouter/sdk";
 import { DataSource } from "typeorm";
-import { MODEL, splitMessage } from "@troy/shared";
+import {
+  MODEL,
+  StoredMessage,
+  historyToMessages,
+  splitMessage,
+} from "@troy/shared";
 import { TRUSTED_TOOLS, UNTRUSTED_TOOLS, handleToolCall } from "./tools.js";
 import {
   ConversationEntry,
-  StoredMessage,
   openDb,
   writeConversationLog,
   loadRecentHistory,
@@ -318,17 +322,10 @@ async function handleDiscordMessage(
     );
     const skillContents = loadSelectedSkills(skillsDir, selectedFilenames);
     const systemPrompt = buildSystemPrompt(dataDir, skillContents);
-    const messages: ChatMessage[] = [{ role: "system", content: systemPrompt }];
-    for (const exchange of history) {
-      if (exchange.messages.length > 0) {
-        for (const m of exchange.messages) {
-          messages.push(m as ChatMessage);
-        }
-      } else {
-        messages.push({ role: "user", content: exchange.user });
-        messages.push({ role: "assistant", content: exchange.assistant });
-      }
-    }
+    const messages: ChatMessage[] = [
+      { role: "system", content: systemPrompt },
+      ...historyToMessages(history),
+    ];
     const turnStart = messages.length;
     messages.push({ role: "user", content: prompt });
 

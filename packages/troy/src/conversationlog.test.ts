@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 import { rmSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { StoredMessage } from "@troy/shared";
 import {
   ConversationEntry,
-  StoredMessage,
   buildContextEntries,
   formatConversationLog,
   loadConversationEntries,
