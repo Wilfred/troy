@@ -9,7 +9,7 @@ import {
 } from "discord.js";
 import { OpenRouter } from "@openrouter/sdk";
 import { DataSource } from "typeorm";
-import { MODEL, splitMessage } from "@troy/shared";
+import { MODEL, splitMessage, loadDiscordAllowlist } from "@troy/shared";
 import { TRUSTED_TOOLS, UNTRUSTED_TOOLS, handleToolCall } from "./tools.js";
 import {
   ConversationEntry,
@@ -443,17 +443,11 @@ export async function startDiscordBot(
   const model = MODEL;
   const openrouter = new OpenRouter({ apiKey });
 
-  const rawAllowlist = process.env.DISCORD_ALLOWLIST;
-  if (!rawAllowlist) {
+  const allowlist = loadDiscordAllowlist();
+  if (!allowlist) {
     log.warn("DISCORD_ALLOWLIST environment variable is not set");
     process.exit(1);
   }
-  const allowlist = new Set(
-    rawAllowlist
-      .split(",")
-      .map((id: string) => id.trim())
-      .filter(Boolean),
-  );
 
   mkdirSync(join(dataDir, "rules"), { recursive: true });
   mkdirSync(join(dataDir, "skills"), { recursive: true });
