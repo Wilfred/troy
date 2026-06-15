@@ -27,8 +27,6 @@ export type Exchange = {
   messages: StoredMessage[];
 };
 
-export const DEFAULT_HISTORY_LIMIT = 20;
-
 /**
  * Expand a list of exchanges into the chat messages to prepend to a request.
  * Turns that recorded structured tool-call messages are replayed verbatim;
@@ -45,35 +43,4 @@ export function historyToMessages(history: Exchange[]): StoredMessage[] {
     }
   }
   return messages;
-}
-
-// In-memory, per-source history. Troy persists its history in SQLite, but a
-// process-local store is enough for Duck to remember a conversation within a
-// channel without pulling in a database.
-export type HistoryStore = Map<string, Exchange[]>;
-
-export function createHistoryStore(): HistoryStore {
-  return new Map();
-}
-
-export function loadHistory(store: HistoryStore, source: string): Exchange[] {
-  return store.get(source) ?? [];
-}
-
-/**
- * Append an exchange to a source's history, trimming to the most recent
- * `limit` exchanges.
- */
-export function recordExchange(
-  store: HistoryStore,
-  source: string,
-  exchange: Exchange,
-  limit: number = DEFAULT_HISTORY_LIMIT,
-): void {
-  const list = store.get(source) ?? [];
-  list.push(exchange);
-  if (list.length > limit) {
-    list.splice(0, list.length - limit);
-  }
-  store.set(source, list);
 }

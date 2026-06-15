@@ -1,4 +1,6 @@
 import http from "node:http";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import {
   Client,
   Events,
@@ -7,21 +9,20 @@ import {
   Partials,
 } from "discord.js";
 import { OpenRouter } from "@openrouter/sdk";
+import { DataSource } from "typeorm";
 import {
-  HistoryStore,
   MODEL,
-  createHistoryStore,
+  appendExchange,
   historyToMessages,
-  loadHistory,
-  recordExchange,
+  loadRecentHistory,
+  openConversationDb,
   splitMessage,
 } from "@troy/shared";
 
 // Duck is a deliberately minimal Discord bot: it forwards each request to
 // OpenRouter and replies with the model's answer. Unlike Troy, it has no
-// tools and no persistent memory, but it does keep a short, in-memory
-// conversation history per channel (reusing Troy's history helpers) so it can
-// follow up within a conversation.
+// tools, but it reuses Troy's conversation-history storage to remember each
+// channel's conversation across restarts.
 
 const SYSTEM_PROMPT =
   "You are Duck, a friendly and concise assistant on Discord. " +
@@ -31,16 +32,17 @@ const SYSTEM_PROMPT =
 async function generateReply(
   openrouter: OpenRouter,
   model: string,
-  store: HistoryStore,
+  db: DataSource,
   source: string,
   prompt: string,
 ): Promise<string> {
+  const history = await loadRecentHistory(db, source);
   const completion = await openrouter.chat.send({
     chatGenerationParams: {
       model,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
-        ...historyToMessages(loadHistory(store, source)),
+        ...historyToMessages(history),
         { role: "user", content: prompt },
       ],
     },
@@ -54,7 +56,7 @@ async function handleMessage(
   discordMsg: Message,
   openrouter: OpenRouter,
   model: string,
-  store: HistoryStore,
+  db: DataSource,
 ): Promise<void> {
   const prompt = discordMsg.content.replace(/<@[!&]?\d+>/g, "").trim();
   if (!prompt) return;
@@ -67,12 +69,8 @@ async function handleMessage(
   const source = `discord:${discordMsg.channelId}`;
 
   try {
-    const reply = await generateReply(openrouter, model, store, source, prompt);
-    recordExchange(store, source, {
-      user: prompt,
-      assistant: reply,
-      messages: [],
-    });
+    const reply = await generateReply(openrouter, model, db, source, prompt);
+    await appendExchange(db, { source, prompt, response: reply });
     for (const chunk of splitMessage(reply)) {
       await discordMsg.reply(chunk);
     }
@@ -97,7 +95,9 @@ async function main(): Promise<void> {
 
   const model = MODEL;
   const openrouter = new OpenRouter({ apiKey });
-  const history = createHistoryStore();
+
+  const dataDir = process.env.DUCK_DATA_DIR || join(homedir(), "duck_data");
+  const db = await openConversationDb(dataDir);
 
   const client = new Client({
     intents: [
@@ -121,7 +121,7 @@ async function main(): Promise<void> {
       const isMentioned = msg.mentions.has(client.user!);
       if (!isDM && !isMentioned) return;
 
-      await handleMessage(msg, openrouter, model, history);
+      await handleMessage(msg, openrouter, model, db);
     } catch (err) {
       const stack =
         err instanceof Error ? (err.stack ?? err.message) : String(err);

@@ -1,10 +1,6 @@
-# Dockerfile for the minimal Duck bot.
+# Dockerfile for the Duck bot.
 # Build from the repository root so the build context includes the shared
 # package:  docker build -f packages/duck/Dockerfile -t duck .
-#
-# Duck only depends on discord.js, @openrouter/sdk and @troy/shared, so this
-# image stays slim and never installs Troy's heavier dependencies (typeorm,
-# better-sqlite3, googleapis, ...).
 
 # Build stage
 FROM node:22-slim AS build

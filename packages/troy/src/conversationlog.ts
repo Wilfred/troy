@@ -1,8 +1,14 @@
-import { DataSource, MoreThanOrEqual } from "typeorm";
-import { Exchange, StoredMessage } from "@troy/shared";
-import { Conversation } from "./entities.js";
-import { openConversationDb } from "./datasource.js";
+import { DataSource } from "typeorm";
+import {
+  Conversation,
+  Exchange,
+  StoredMessage,
+  appendExchange,
+} from "@troy/shared";
 import { parseStoredDate } from "./dates.js";
+
+export { loadRecentHistory } from "@troy/shared";
+export { openConversationDb as openDb } from "@troy/shared";
 
 export type ConversationEntry =
   | { kind: "system"; content: string }
@@ -133,10 +139,6 @@ export function loadConversationEntries(
   return JSON.parse(row.entries) as ConversationEntry[];
 }
 
-export function openDb(logDir: string): Promise<DataSource> {
-  return openConversationDb(logDir);
-}
-
 export async function writeConversationLog(
   ds: DataSource,
   entries: ConversationEntry[],
@@ -149,19 +151,15 @@ export async function writeConversationLog(
   const lastResponse = responseEntries[responseEntries.length - 1];
   const prompt = promptEntry?.content ?? "";
   const response = lastResponse?.content ?? "";
-  const content = formatConversationLog(entries);
-  const repo = ds.getRepository(Conversation);
-  const row = repo.create({
-    source: source ?? "cli",
+  return appendExchange(ds, {
+    source,
     prompt,
     response,
-    content,
+    content: formatConversationLog(entries),
     entries: JSON.stringify(entries),
-    messages: messages ? JSON.stringify(messages) : null,
-    total_duration_ms: totalDurationMs ?? null,
+    messages,
+    totalDurationMs,
   });
-  await repo.save(row);
-  return row.id;
 }
 
 export type ConversationRow = {
@@ -223,91 +221,4 @@ export async function getConversation(
 
 export async function countConversations(ds: DataSource): Promise<number> {
   return ds.getRepository(Conversation).count();
-}
-
-function sqliteNow(offsetSeconds: number = 0): string {
-  const d = new Date(Date.now() + offsetSeconds * 1000);
-  const pad = (n: number): string => String(n).padStart(2, "0");
-  return (
-    `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ` +
-    `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`
-  );
-}
-
-function parseStoredMessages(raw: string | null): StoredMessage[] {
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (Array.isArray(parsed)) {
-      return parsed as StoredMessage[];
-    }
-  } catch {
-    // ignore — fall through to empty
-  }
-  return [];
-}
-
-export async function loadRecentHistory(
-  ds: DataSource,
-  source?: string,
-): Promise<Exchange[]> {
-  const repo = ds.getRepository(Conversation);
-  const src = source ?? "cli";
-
-  // Always include the 3 most recent exchanges.
-  const recentRows = await repo.find({
-    where: { source: src },
-    order: { id: "DESC" },
-    take: 3,
-    select: ["id", "prompt", "response", "messages"],
-  });
-
-  // Also include all exchanges from the last hour.
-  const oneHourAgo = sqliteNow(-3600);
-  const lastHourRows = await repo.find({
-    where: { source: src, created_at: MoreThanOrEqual(oneHourAgo) },
-    order: { id: "ASC" },
-    select: ["id", "prompt", "response", "messages"],
-  });
-  // Merge and deduplicate by id, keeping chronological order.
-  const seen = new Set<number>();
-  const merged: Array<{
-    id: number;
-    prompt: string;
-    response: string;
-    messages: string | null;
-  }> = [];
-
-  for (const row of lastHourRows) {
-    if (!seen.has(row.id)) {
-      seen.add(row.id);
-      merged.push({
-        id: row.id,
-        prompt: row.prompt,
-        response: row.response,
-        messages: row.messages,
-      });
-    }
-  }
-
-  const recentAsc = [...recentRows].reverse();
-  for (const row of recentAsc) {
-    if (!seen.has(row.id)) {
-      seen.add(row.id);
-      merged.push({
-        id: row.id,
-        prompt: row.prompt,
-        response: row.response,
-        messages: row.messages,
-      });
-    }
-  }
-
-  merged.sort((a, b) => a.id - b.id);
-
-  return merged.map((row) => ({
-    user: row.prompt,
-    assistant: row.response,
-    messages: parseStoredMessages(row.messages),
-  }));
 }

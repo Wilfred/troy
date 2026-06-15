@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { rmSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { StoredMessage } from "@troy/shared";
+import { Conversation, StoredMessage } from "@troy/shared";
 import {
   ConversationEntry,
   buildContextEntries,
@@ -14,7 +14,6 @@ import {
   writeConversationLog,
   loadRecentHistory,
 } from "./conversationlog.js";
-import { Conversation } from "./entities.js";
 
 function tmpDir(): string {
   const dir = join(

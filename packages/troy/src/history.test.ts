@@ -1,12 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import {
-  StoredMessage,
-  createHistoryStore,
-  historyToMessages,
-  loadHistory,
-  recordExchange,
-} from "@troy/shared";
+import { StoredMessage, historyToMessages } from "@troy/shared";
 
 describe("historyToMessages", () => {
   it("expands plain exchanges into user/assistant pairs", () => {
@@ -47,41 +41,5 @@ describe("historyToMessages", () => {
 
   it("returns no messages for empty history", () => {
     assert.deepEqual(historyToMessages([]), []);
-  });
-});
-
-describe("in-memory history store", () => {
-  it("keeps history separate per source", () => {
-    const store = createHistoryStore();
-    recordExchange(store, "a", { user: "q1", assistant: "r1", messages: [] });
-    recordExchange(store, "b", { user: "q2", assistant: "r2", messages: [] });
-    assert.deepEqual(loadHistory(store, "a"), [
-      { user: "q1", assistant: "r1", messages: [] },
-    ]);
-    assert.deepEqual(loadHistory(store, "b"), [
-      { user: "q2", assistant: "r2", messages: [] },
-    ]);
-  });
-
-  it("returns an empty array for an unknown source", () => {
-    assert.deepEqual(loadHistory(createHistoryStore(), "missing"), []);
-  });
-
-  it("trims to the most recent exchanges past the limit", () => {
-    const store = createHistoryStore();
-    for (let i = 0; i < 5; i++) {
-      recordExchange(
-        store,
-        "a",
-        { user: `q${i}`, assistant: `r${i}`, messages: [] },
-        3,
-      );
-    }
-    const history = loadHistory(store, "a");
-    assert.equal(history.length, 3);
-    assert.deepEqual(
-      history.map((e) => e.user),
-      ["q2", "q3", "q4"],
-    );
   });
 });
