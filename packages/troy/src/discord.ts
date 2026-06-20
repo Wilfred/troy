@@ -10,7 +10,6 @@ import {
 import { OpenRouter } from "@openrouter/sdk";
 import { DataSource } from "typeorm";
 import { MODEL, splitMessage, loadDiscordAllowlist } from "@troy/shared";
-import { TRUSTED_TOOLS, UNTRUSTED_TOOLS, handleToolCall } from "./tools.js";
 import {
   ConversationEntry,
   StoredMessage,
@@ -18,7 +17,8 @@ import {
   writeConversationLog,
   loadRecentHistory,
   buildContextEntries,
-} from "./conversationlog.js";
+} from "@troy/history";
+import { TRUSTED_TOOLS, UNTRUSTED_TOOLS, handleToolCall } from "./tools.js";
 import { log } from "./logger.js";
 import { buildSystemPrompt } from "./systemprompt.js";
 import { DueReminder, startReminderScheduler } from "./reminders.js";

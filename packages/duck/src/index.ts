@@ -1,4 +1,6 @@
 import http from "node:http";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import {
   Client,
   Events,
@@ -8,29 +10,36 @@ import {
 } from "discord.js";
 import { OpenRouter } from "@openrouter/sdk";
 import { MODEL, splitMessage, loadDiscordAllowlist } from "@troy/shared";
+import {
+  ConversationDb,
+  ConversationEntry,
+  StoredMessage,
+  openDb,
+  writeConversationLog,
+  loadRecentHistory,
+  buildContextEntries,
+} from "@troy/history";
 
-// Duck is a deliberately minimal Discord bot: it forwards each request to
-// OpenRouter and replies with the model's answer. Unlike Troy, it has no
-// tools, no persistent memory, and no conversation history.
+// Duck is a focused Discord bot built on OpenRouter. It has no tools, but it
+// does remember recent conversation per channel via the shared @troy/history
+// library, so follow-up questions keep their context.
 
 const SYSTEM_PROMPT =
   "You are Duck, a friendly and concise assistant on Discord. " +
-  "Answer the user's questions directly. You have no tools, no memory of " +
-  "past conversations, and no access to external services.";
+  "Answer the user's questions directly.";
+
+type ChatMessage =
+  | { role: "system"; content: string }
+  | { role: "user"; content: string }
+  | { role: "assistant"; content?: string | null };
 
 async function generateReply(
   openrouter: OpenRouter,
   model: string,
-  prompt: string,
+  messages: ChatMessage[],
 ): Promise<string> {
   const completion = await openrouter.chat.send({
-    chatGenerationParams: {
-      model,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: prompt },
-      ],
-    },
+    chatGenerationParams: { model, messages },
   });
 
   const content = completion.choices?.[0]?.message?.content;
@@ -41,6 +50,7 @@ async function handleMessage(
   discordMsg: Message,
   openrouter: OpenRouter,
   model: string,
+  db: ConversationDb,
 ): Promise<void> {
   const prompt = discordMsg.content.replace(/<@[!&]?\d+>/g, "").trim();
   if (!prompt) return;
@@ -50,8 +60,39 @@ async function handleMessage(
     return;
   }
 
+  const source = `discord:${discordMsg.channelId}`;
+  const history = await loadRecentHistory(db, source);
+
+  const messages: ChatMessage[] = [{ role: "system", content: SYSTEM_PROMPT }];
+  for (const exchange of history) {
+    messages.push({ role: "user", content: exchange.user });
+    messages.push({ role: "assistant", content: exchange.assistant });
+  }
+  messages.push({ role: "user", content: prompt });
+
+  const conversationLog: ConversationEntry[] = [
+    ...buildContextEntries(SYSTEM_PROMPT, history),
+    { kind: "prompt", content: prompt },
+  ];
+
   try {
-    const reply = await generateReply(openrouter, model, prompt);
+    const turnStartTime = Date.now();
+    const reply = await generateReply(openrouter, model, messages);
+    const totalDurationMs = Date.now() - turnStartTime;
+
+    conversationLog.push({ kind: "response", content: reply });
+    const turnMessages: StoredMessage[] = [
+      { role: "user", content: prompt },
+      { role: "assistant", content: reply },
+    ];
+    await writeConversationLog(
+      db,
+      conversationLog,
+      source,
+      turnMessages,
+      totalDurationMs,
+    );
+
     for (const chunk of splitMessage(reply)) {
       await discordMsg.reply(chunk);
     }
@@ -80,6 +121,9 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  const dataDir = process.env.DUCK_DATA_DIR || join(homedir(), "duck_data");
+  const db = await openDb(dataDir);
+
   const model = MODEL;
   const openrouter = new OpenRouter({ apiKey });
 
@@ -107,7 +151,7 @@ async function main(): Promise<void> {
       const isMentioned = msg.mentions.has(client.user!);
       if (!isDM && !isMentioned) return;
 
-      await handleMessage(msg, openrouter, model);
+      await handleMessage(msg, openrouter, model, db);
     } catch (err) {
       const stack =
         err instanceof Error ? (err.stack ?? err.message) : String(err);

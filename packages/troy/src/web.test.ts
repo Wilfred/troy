@@ -5,11 +5,7 @@ import { Server } from "node:http";
 import { rmSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import {
-  ConversationEntry,
-  openDb,
-  writeConversationLog,
-} from "./conversationlog.js";
+import { ConversationEntry, openDb, writeConversationLog } from "@troy/history";
 import { startWebServer } from "./web.js";
 
 function tmpDir(): string {

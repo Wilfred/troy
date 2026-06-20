@@ -7,12 +7,14 @@ FROM node:22-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY packages/shared/package.json packages/shared/
+COPY packages/history/package.json packages/history/
 COPY packages/troy/package.json packages/troy/
 COPY packages/duck/package.json packages/duck/
 # Install only the Troy workspace (+ root dev tooling such as tsc).
 RUN npm ci -w troy --include-workspace-root
 COPY tsconfig.base.json ./
 COPY packages/shared packages/shared
+COPY packages/history packages/history
 COPY packages/troy packages/troy
 RUN npx tsc -b packages/troy \
   && cp -r packages/troy/src/public packages/troy/dist/public
@@ -23,10 +25,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY packages/shared/package.json packages/shared/
+COPY packages/history/package.json packages/history/
 COPY packages/troy/package.json packages/troy/
 COPY packages/duck/package.json packages/duck/
 RUN npm ci --omit=dev -w troy --include-workspace-root=false
 COPY --from=build /app/packages/shared/dist/ packages/shared/dist/
+COPY --from=build /app/packages/history/dist/ packages/history/dist/
 COPY --from=build /app/packages/troy/dist/ packages/troy/dist/
 # SYSTEM.md and the code-search tool read from the source tree at runtime.
 COPY packages/troy/src/ packages/troy/src/

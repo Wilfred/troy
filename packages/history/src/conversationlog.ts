@@ -1,9 +1,16 @@
 import { DataSource, MoreThanOrEqual } from "typeorm";
+import { parseStoredDate } from "@troy/shared";
 import { Conversation } from "./entities.js";
 import { openConversationDb } from "./datasource.js";
-import { parseStoredDate } from "./dates.js";
 
-export type StoredToolCall = {
+/**
+ * Opaque handle to the conversation database. Consumers should treat this as
+ * an abstract token returned by `openDb` rather than depend on typeorm
+ * directly.
+ */
+export type ConversationDb = DataSource;
+
+type StoredToolCall = {
   id: string;
   type: "function";
   function: { name: string; arguments: string };
