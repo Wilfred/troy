@@ -1,12 +1,9 @@
 import { LessThanOrEqual } from "typeorm";
+import { parseStoredDate } from "@troy/shared";
 import { Reminder } from "./entities.js";
 import { openReminderDb } from "./datasource.js";
 import { log } from "./logger.js";
-import {
-  LOCAL_TIMEZONE,
-  parseLocalDateTime,
-  parseStoredDate,
-} from "./dates.js";
+import { LOCAL_TIMEZONE, parseLocalDateTime } from "./dates.js";
 
 export interface DueReminder {
   id: number;

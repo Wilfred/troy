@@ -18,7 +18,7 @@ import {
   sumToolDurationMs,
   ConversationEntry,
   ConversationRow,
-} from "./conversationlog.js";
+} from "@troy/history";
 import { listReminders, ReminderRow } from "./reminders.js";
 import {
   PROCESS_START_TIME,

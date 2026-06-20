@@ -38,21 +38,22 @@ under `packages/`, with a single root `package.json` holding the shared dev
 tooling (TypeScript, ESLint, Prettier, knip, tsx):
 
 - `packages/troy/` — the full Troy bot (CLI, Discord, web UI, tools, memory)
-- `packages/duck/` — a minimal Discord bot that forwards requests to OpenRouter with no tools, no memory, and no history
-- `packages/shared/` (`@troy/shared`) — code shared between the two bots (e.g. `splitMessage`, the model constant)
+- `packages/duck/` — a focused Discord bot that forwards requests to OpenRouter with no tools, but with persistent per-channel conversation history
+- `packages/history/` (`@troy/history`) — the conversation-history library: stores and replays each exchange in a SQLite `conversations.db`, and builds the formatted conversation log. Used by both `troy` and `duck`.
+- `packages/shared/` (`@troy/shared`) — lightweight, dependency-free code shared across bots (e.g. `splitMessage`, the model constant, `parseStoredDate`)
 
 TypeScript uses **project references**: each package has its own
 `tsconfig.json` extending `tsconfig.base.json`, the root `tsconfig.json` is a
-solution file referencing all three, and `tsc -b` builds them in dependency
-order. Each package emits to its own `dist/`. Both `troy` and `duck` depend on
-`@troy/shared` via the workspace; importing across packages goes through the
-`@troy/shared` package name, never relative `../` paths into another package.
+solution file referencing all four, and `tsc -b` builds them in dependency
+order. Each package emits to its own `dist/`. `troy` and `duck` depend on
+`@troy/shared` and `@troy/history` via the workspace; importing across packages
+goes through the package name, never relative `../` paths into another package.
 
 Each deployable app has its own Dockerfile, built from the repo root as
 context so the build sees the whole workspace:
 
 - `packages/troy/Dockerfile` — `docker build -f packages/troy/Dockerfile -t troy .`
-- `packages/duck/Dockerfile` — `docker build -f packages/duck/Dockerfile -t duck .` (installs only Duck + shared deps, so the image stays slim)
+- `packages/duck/Dockerfile` — `docker build -f packages/duck/Dockerfile -t duck .`
 
 **Troy source files (`packages/troy/src/`) — keep each file small and focused on a single responsibility:**
 
@@ -63,14 +64,22 @@ context so the build sees the whole workspace:
 - `calendar.ts` — Google Calendar tool schemas and handlers
 - `search.ts` — Web search tool using Brave Search API
 - `discord.ts` — Discord bot integration
-- `conversationlog.ts` — Conversation logging utilities
-- `entities.ts` — TypeORM entity definitions (Conversation, Reminder)
-- `datasource.ts` — TypeORM DataSource initialization for the SQLite files
+- `entities.ts` — TypeORM entity definitions (Reminder)
+- `datasource.ts` — TypeORM DataSource initialization for the reminders SQLite file
 - `logger.ts` — Structured logging via winston
+
+Conversation history (logging, replay, and the formatted log) lives in the
+shared `@troy/history` package rather than in Troy itself.
+
+**History source files (`packages/history/src/`):**
+
+- `conversationlog.ts` — read/write conversation exchanges, build and format the conversation log
+- `entities.ts` — TypeORM `Conversation` entity
+- `datasource.ts` — TypeORM DataSource initialization for `conversations.db`
 
 **Duck source files (`packages/duck/src/`):**
 
-- `index.ts` — minimal Discord bot entry point; sends each prompt to OpenRouter and replies with the result
+- `index.ts` — Discord bot entry point; loads recent per-channel history via `@troy/history`, sends the prompt to OpenRouter, replies, and persists the exchange
 
 **CLI subcommands** (via Commander.js, exposed as npm scripts):
 

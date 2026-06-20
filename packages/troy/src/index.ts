@@ -8,6 +8,10 @@ import { OpenRouter } from "@openrouter/sdk";
 import { TRUSTED_TOOLS, UNTRUSTED_TOOLS, handleToolCall } from "./tools.js";
 import { startDiscordBot } from "./discord.js";
 import { startWebServer } from "./web.js";
+import { log } from "./logger.js";
+import { buildSystemPrompt } from "./systemprompt.js";
+import { DueReminder, startReminderScheduler } from "./reminders.js";
+import { MODEL } from "@troy/shared";
 import {
   ConversationEntry,
   StoredMessage,
@@ -15,11 +19,7 @@ import {
   writeConversationLog,
   loadRecentHistory,
   buildContextEntries,
-} from "./conversationlog.js";
-import { log } from "./logger.js";
-import { buildSystemPrompt } from "./systemprompt.js";
-import { DueReminder, startReminderScheduler } from "./reminders.js";
-import { MODEL } from "@troy/shared";
+} from "@troy/history";
 import { reflectOnNotes, reflectOnSkills } from "./notereflect.js";
 import { selectRelevantSkills, loadSelectedSkills } from "./skills.js";
 
