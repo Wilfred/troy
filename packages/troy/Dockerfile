@@ -10,14 +10,11 @@ COPY packages/shared/package.json packages/shared/
 COPY packages/history/package.json packages/history/
 COPY packages/troy/package.json packages/troy/
 COPY packages/duck/package.json packages/duck/
-# Install only the Troy workspace (+ root dev tooling such as tsc).
-RUN npm ci -w troy --include-workspace-root
+# Install every workspace's dependencies, then build all packages.
+RUN npm ci
 COPY tsconfig.base.json ./
-COPY packages/shared packages/shared
-COPY packages/history packages/history
-COPY packages/troy packages/troy
-RUN npx tsc -b packages/troy \
-  && cp -r packages/troy/src/public packages/troy/dist/public
+COPY packages packages
+RUN npm run build
 
 # Production stage
 FROM node:22-slim
