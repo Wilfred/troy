@@ -95,3 +95,4 @@ shared `@troy/history` package rather than in Troy itself.
 - ESLint rule: block exports (`export { ... }`) are forbidden — add `export` directly to each declaration
 - No classes; functional style with explicit parameter passing
 - Prefer well-maintained npm packages over bespoke implementations
+- Avoid `npx` for running tooling — it can fetch and run an unpinned version. Use an npm script (which runs the version from `node_modules`) instead, e.g. `npm run build` rather than `npx tsc -b`.

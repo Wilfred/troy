@@ -12,7 +12,8 @@ COPY packages/troy/package.json packages/troy/
 COPY packages/duck/package.json packages/duck/
 # Install every workspace's dependencies, then build all packages.
 RUN npm ci
-COPY tsconfig.base.json ./
+# tsc -b reads the root tsconfig.json solution file plus tsconfig.base.json.
+COPY tsconfig.json tsconfig.base.json ./
 COPY packages packages
 RUN npm run build
 
