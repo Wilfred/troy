@@ -468,22 +468,40 @@ export async function startDiscordBot(
   client.once(Events.ClientReady, (c) => {
     log.info(`Logged in as ${c.user.tag}`);
 
-    startReminderScheduler(dataDir, (reminders: DueReminder[]) => {
+    startReminderScheduler(dataDir, async (reminders: DueReminder[]) => {
+      const delivered: number[] = [];
       for (const r of reminders) {
         const match = r.source.match(/^discord:(\d+)$/);
-        if (!match) continue;
+        if (!match) {
+          // Not routable to a Discord channel; treat as terminal so it is
+          // not retried forever.
+          delivered.push(r.id);
+          continue;
+        }
         const channelId = match[1];
-        const channel = client.channels.cache.get(channelId);
-        if (channel && channel.isTextBased() && "send" in channel) {
-          (channel as { send: (msg: string) => Promise<unknown> })
-            .send(`**Reminder:** ${r.message}`)
-            .catch((err: unknown) =>
-              log.error(
-                `Failed to send reminder to channel ${channelId}: ${err}`,
-              ),
+        try {
+          // Fall back to fetch: right after a restart the channel cache is
+          // cold and DM channels are not cached at all, so cache.get alone
+          // would silently drop the reminder.
+          const channel =
+            client.channels.cache.get(channelId) ??
+            (await client.channels.fetch(channelId));
+          if (channel && channel.isTextBased() && "send" in channel) {
+            await (channel as { send: (msg: string) => Promise<unknown> }).send(
+              `**Reminder:** ${r.message}`,
             );
+            delivered.push(r.id);
+          } else {
+            // Channel exists but can't receive messages; don't retry.
+            delivered.push(r.id);
+          }
+        } catch (err: unknown) {
+          // Transient failure (e.g. channel not loaded yet). Leave the
+          // reminder pending so the next poll retries it.
+          log.error(`Failed to send reminder to channel ${channelId}: ${err}`);
         }
       }
+      return delivered;
     });
   });
 
