@@ -332,6 +332,7 @@ async function replAction(opts: {
     for (const r of reminders) {
       processStdout.write(`\n[Reminder]: ${r.message}\n`);
     }
+    return Promise.resolve(reminders.map((r) => r.id));
   });
 
   processStdout.write('Troy REPL (Ctrl+D or "exit" to quit)\n\n');
