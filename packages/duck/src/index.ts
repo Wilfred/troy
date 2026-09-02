@@ -9,7 +9,12 @@ import {
   Partials,
 } from "discord.js";
 import { OpenRouter } from "@openrouter/sdk";
-import { MODEL, splitMessage, loadDiscordAllowlist } from "@troy/shared";
+import {
+  MODEL,
+  splitMessage,
+  loadDiscordAllowlist,
+  loginWithRetry,
+} from "@troy/shared";
 import {
   ConversationDb,
   ConversationEntry,
@@ -159,7 +164,7 @@ async function main(): Promise<void> {
     }
   });
 
-  await client.login(token);
+  await loginWithRetry(client, token, console.warn);
 
   const healthPort = parseInt(process.env.HEALTH_PORT || "8080", 10);
   const healthServer = http.createServer((_req, res) => {
@@ -172,4 +177,9 @@ async function main(): Promise<void> {
   });
 }
 
-main();
+main().catch((err: unknown) => {
+  console.error(
+    `Fatal error: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`,
+  );
+  process.exit(1);
+});

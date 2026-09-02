@@ -659,4 +659,9 @@ Environment variables:
   await program.parseAsync();
 }
 
-main();
+main().catch((err: unknown) => {
+  log.error(
+    `Fatal error: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`,
+  );
+  process.exit(1);
+});

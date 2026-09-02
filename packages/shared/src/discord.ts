@@ -1,3 +1,6 @@
+import { Client, DiscordjsError } from "discord.js";
+import pRetry from "p-retry";
+
 // Discord-related helpers shared between the Troy and Duck bots.
 
 export const DISCORD_MAX_LENGTH = 2000;
@@ -25,4 +28,25 @@ export function splitMessage(text: string): string[] {
     remaining = remaining.slice(splitAt).trimStart();
   }
   return chunks;
+}
+
+// discord.js reconnects on its own once logged in, but not for the initial
+// connection, so a transient DNS or network failure at startup rejects and
+// takes the process down. Retry those with exponential backoff. Errors raised
+// by discord.js itself (an invalid token, say) are not transient, so they
+// reject immediately.
+export async function loginWithRetry(
+  client: Client,
+  token: string,
+  warn: (message: string) => void,
+): Promise<void> {
+  await pRetry(() => client.login(token), {
+    maxTimeout: 60_000,
+    shouldRetry: ({ error }) => !(error instanceof DiscordjsError),
+    onFailedAttempt: ({ error, attemptNumber, retriesLeft }) => {
+      warn(
+        `Discord login attempt ${attemptNumber} failed (${error.message}), ${retriesLeft} retries left`,
+      );
+    },
+  });
 }

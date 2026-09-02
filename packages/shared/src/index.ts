@@ -1,6 +1,6 @@
 export { DEFAULT_MODEL, MODEL } from "./consts.js";
 export { parseStoredDate } from "./dates.js";
-export { DISCORD_MAX_LENGTH, splitMessage } from "./discord.js";
+export { DISCORD_MAX_LENGTH, loginWithRetry, splitMessage } from "./discord.js";
 export {
   DISCORD_ALLOWLIST_ENV,
   loadDiscordAllowlist,
