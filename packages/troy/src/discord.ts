@@ -9,7 +9,12 @@ import {
 } from "discord.js";
 import { OpenRouter } from "@openrouter/sdk";
 import { DataSource } from "typeorm";
-import { MODEL, splitMessage, loadDiscordAllowlist } from "@troy/shared";
+import {
+  MODEL,
+  splitMessage,
+  loadDiscordAllowlist,
+  loginWithRetry,
+} from "@troy/shared";
 import {
   ConversationEntry,
   StoredMessage,
@@ -506,7 +511,7 @@ export async function startDiscordBot(
     }
   });
 
-  await client.login(token);
+  await loginWithRetry(client, token, (message) => log.warn(message));
 
   return client;
 }

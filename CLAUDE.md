@@ -40,7 +40,7 @@ tooling (TypeScript, ESLint, Prettier, knip, tsx):
 - `packages/troy/` — the full Troy bot (CLI, Discord, web UI, tools, memory)
 - `packages/duck/` — a focused Discord bot that forwards requests to OpenRouter with no tools, but with persistent per-channel conversation history
 - `packages/history/` (`@troy/history`) — the conversation-history library: stores and replays each exchange in a SQLite `conversations.db`, and builds the formatted conversation log. Used by both `troy` and `duck`.
-- `packages/shared/` (`@troy/shared`) — lightweight, dependency-free code shared across bots (e.g. `splitMessage`, the model constant, `parseStoredDate`)
+- `packages/shared/` (`@troy/shared`) — small helpers shared across bots (e.g. `splitMessage`, `loginWithRetry`, the model constant, `parseStoredDate`)
 
 TypeScript uses **project references**: each package has its own
 `tsconfig.json` extending `tsconfig.base.json`, the root `tsconfig.json` is a
